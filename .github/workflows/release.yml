@@ -41,12 +41,6 @@ jobs:
         mkdir Payload
         cp -r Runner.app Payload
         zip -r app.ipa Payload
-        
-    - name: Build Android
-      run: |
-        flutter build apk --release
-        flutter build appbundle --release
-        
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -57,26 +51,6 @@ jobs:
         release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
-        
-    - name: Upload Android APK
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/app/outputs/flutter-apk/app-release.apk
-        asset_name: wangyiyun-ai.apk
-        asset_content_type: application/vnd.android.package-archive
-        
-    - name: Upload Android App Bundle
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/app/outputs/bundle/release/app-release.aab
-        asset_name: wangyiyun-ai.aab
-        asset_content_type: application/octet-stream
         
     - name: Upload iOS IPA
       uses: actions/upload-release-asset@v1
