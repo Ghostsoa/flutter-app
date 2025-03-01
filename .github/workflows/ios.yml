@@ -14,28 +14,37 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.16.0'
+        flutter-version: '3.27.1'
         channel: 'stable'
     
     - name: Install dependencies
       run: flutter pub get
       
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+      
     - name: Build iOS
       run: |
         cd ios
-        pod install
+        rm -rf Pods
+        rm -rf Podfile.lock
+        pod repo update
+        pod install --repo-update
         cd ..
-        flutter build ios --release --no-codesign
+        flutter build ios --simulator --debug
         
-    - name: Compress IPA
+    - name: Compress App
       run: |
-        cd build/ios/iphoneos
+        cd build/ios/iphonesimulator
         zip -r app.zip Runner.app
         
     - name: Upload to Appetize
       run: |
         APPETIZE_URL=$(curl -sS -u "${{ secrets.APPETIZE_API_TOKEN }}:" \
-          -F "file=@build/ios/iphoneos/app.zip" \
+          -F "file=@build/ios/iphonesimulator/app.zip" \
           -F "platform=ios" \
           https://api.appetize.io/v1/apps)
         echo "Appetize URL: $APPETIZE_URL" 
