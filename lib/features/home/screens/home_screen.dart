@@ -17,8 +17,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final LotteryApi _lotteryApi;
-  bool _isSigningIn = false;
-  bool _isDrawing = false;
+  final bool _isSigningIn = false;
+  final bool _isDrawing = false;
   bool _isLoading = true;
   bool _hasNewAnnouncement = false;
 

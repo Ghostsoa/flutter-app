@@ -1,0 +1,89 @@
+name: Release Build
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.27.1'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Generate app icons
+      run: flutter pub run flutter_launcher_icons
+      
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+      
+    - name: Build iOS
+      run: |
+        cd ios
+        rm -rf Pods
+        rm -rf Podfile.lock
+        pod repo update
+        pod install --repo-update
+        cd ..
+        flutter build ios --release --no-codesign
+        cd build/ios/iphoneos
+        mkdir Payload
+        cp -r Runner.app Payload
+        zip -r app.ipa Payload
+        
+    - name: Build Android
+      run: |
+        flutter build apk --release
+        flutter build appbundle --release
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Android APK
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/app/outputs/flutter-apk/app-release.apk
+        asset_name: wangyiyun-ai.apk
+        asset_content_type: application/vnd.android.package-archive
+        
+    - name: Upload Android App Bundle
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/app/outputs/bundle/release/app-release.aab
+        asset_name: wangyiyun-ai.aab
+        asset_content_type: application/octet-stream
+        
+    - name: Upload iOS IPA
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/ios/iphoneos/app.ipa
+        asset_name: wangyiyun-ai.ipa
+        asset_content_type: application/octet-stream 

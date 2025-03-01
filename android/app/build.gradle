@@ -6,8 +6,8 @@ plugins {
 }
 
 android {
-    namespace "com.example.app"
-    compileSdk flutter.compileSdkVersion
+    namespace "wangyiyun.ai"
+    compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.app"
+        applicationId "wangyiyun.ai"
         minSdk flutter.minSdkVersion
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
