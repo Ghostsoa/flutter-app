@@ -53,7 +53,7 @@ dependencies:
   path_provider: ^2.1.5
   image: ^4.5.3
   file_picker: ^9.0.2
-  path: ^1.9.0
+  path: 1.8.3  # 固定版本为 1.8.3
   encrypt: ^5.0.3
 
   # The following adds the Cupertino Icons font to your application.
