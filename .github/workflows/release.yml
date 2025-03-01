@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v3
     
@@ -41,23 +43,12 @@ jobs:
         mkdir Payload
         cp -r Runner.app Payload
         zip -r app.ipa Payload
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
         
-    - name: Upload iOS IPA
-      uses: actions/upload-release-asset@v1
+    - name: Create Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/ios/iphoneos/app.ipa
-        asset_name: wangyiyun-ai.ipa
-        asset_content_type: application/octet-stream 
+      run: |
+        gh release create ${{ github.ref_name }} \
+          --title "Release ${{ github.ref_name }}" \
+          --notes "Release ${{ github.ref_name }}" \
+          build/ios/iphoneos/app.ipa 
