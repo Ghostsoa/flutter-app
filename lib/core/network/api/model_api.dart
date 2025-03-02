@@ -20,6 +20,11 @@ class ModelApi {
     }
   }
 
+  /// 初始化 ModelApi
+  Future<void> initialize() async {
+    await _ensureInitialized();
+  }
+
   /// 获取可用的模型列表
   Future<List<ModelInfo>> getModels() async {
     await _ensureInitialized();

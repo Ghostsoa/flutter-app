@@ -27,12 +27,16 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
 
   Future<void> _initData() async {
     try {
+      setState(() => _isLoading = true);
+
       // 初始化仓库
       _repository = await ModelConfigRepository.create();
       final config = await _repository.getConfig();
 
       // 获取可用模型列表
-      final models = await ModelApi.instance.getModels();
+      final modelApi = ModelApi.instance;
+      await modelApi.initialize(); // 初始化 ModelApi
+      final models = await modelApi.getModels();
 
       if (mounted) {
         setState(() {
@@ -243,8 +247,8 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                 });
               },
               min: 100,
-              max: 4000,
-              divisions: 39,
+              max: 8196,
+              divisions: 81,
               valueFormatter: (value) => value.round().toString(),
             ),
 
@@ -289,8 +293,8 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                 });
               },
               min: 5,
-              max: 50,
-              divisions: 45,
+              max: 200,
+              divisions: 195,
               valueFormatter: (value) => value.round().toString(),
             ),
 

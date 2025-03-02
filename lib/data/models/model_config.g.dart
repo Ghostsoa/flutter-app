@@ -10,10 +10,10 @@ ModelConfig _$ModelConfigFromJson(Map<String, dynamic> json) => ModelConfig(
       model: json['model'] as String,
       temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
       topP: (json['topP'] as num?)?.toDouble() ?? 1.0,
-      maxTokens: (json['maxTokens'] as num?)?.toInt() ?? 2000,
+      maxTokens: (json['maxTokens'] as num?)?.toInt() ?? 8196,
       presencePenalty: (json['presencePenalty'] as num?)?.toDouble() ?? 0.0,
       frequencyPenalty: (json['frequencyPenalty'] as num?)?.toDouble() ?? 0.0,
-      maxRounds: (json['maxRounds'] as num?)?.toInt() ?? 20,
+      maxRounds: (json['maxRounds'] as num?)?.toInt() ?? 200,
       streamResponse: json['streamResponse'] as bool? ?? true,
       chunkResponse: json['chunkResponse'] as bool? ?? false,
     );

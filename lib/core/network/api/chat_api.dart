@@ -36,8 +36,9 @@ class ChatApi {
     buffer.writeln(character.description);
     buffer.writeln();
 
-    // 添加用户自定义设定
-    if (character.userSetting?.isNotEmpty == true) {
+    // 只在用户设定不为空时才添加
+    if (character.userSetting != null &&
+        character.userSetting!.trim().isNotEmpty) {
       buffer.writeln('[用户设定]');
       buffer.writeln(character.userSetting);
       buffer.writeln();

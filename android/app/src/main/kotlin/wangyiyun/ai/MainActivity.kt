@@ -1,4 +1,4 @@
-package com.example.app
+package wangyiyun.ai
 
 import io.flutter.embedding.android.FlutterActivity
 

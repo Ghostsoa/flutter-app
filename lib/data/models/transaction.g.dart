@@ -27,6 +27,7 @@ Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
 
 const _$TransactionTypeEnumMap = {
   TransactionType.deduction: 'deduction',
+  TransactionType.deduct: 'deduct',
   TransactionType.recharge: 'recharge',
   TransactionType.reward: 'reward',
   TransactionType.gift: 'gift',

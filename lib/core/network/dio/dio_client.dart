@@ -3,17 +3,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/logger.dart';
 
 class DioClient {
-  static const String _version = '1.0';
   static const String _tokenKey = 'auth_token';
 
   late final Dio _dio;
   final SharedPreferences _prefs;
 
   DioClient(String baseUrl, this._prefs) {
+    _initDio(baseUrl);
+  }
+
+  Future<void> _initDio(String baseUrl) async {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       headers: {
-        'X-Client-Version': _version,
+        'X-Client-Version': '2.0',
         'Content-Type': 'application/json',
       },
       validateStatus: (status) => status != null && status < 500,

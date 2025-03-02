@@ -5,6 +5,8 @@ part 'transaction.g.dart';
 enum TransactionType {
   @JsonValue('deduction')
   deduction,
+  @JsonValue('deduct')
+  deduct,
   @JsonValue('recharge')
   recharge,
   @JsonValue('reward')
@@ -42,6 +44,7 @@ class Transaction {
   String get typeText {
     switch (type) {
       case TransactionType.deduction:
+      case TransactionType.deduct:
         return '扣费';
       case TransactionType.recharge:
         return '充值';

@@ -122,7 +122,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                               children: [
                                 Expanded(child: Text(transaction.description)),
                                 Text(
-                                  '余额: ${transaction.balanceAfter.toStringAsFixed(2)}',
+                                  '小懿币: ${transaction.balanceAfter.toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],

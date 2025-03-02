@@ -113,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -125,10 +126,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(
-                    Icons.lock_outline,
-                    size: 80,
-                    color: Colors.blue,
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Icon(
+                          Icons.person_outline,
+                          size: 50,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text(

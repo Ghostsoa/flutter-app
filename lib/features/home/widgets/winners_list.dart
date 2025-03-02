@@ -209,7 +209,7 @@ class _WinnersListState extends State<WinnersList> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '￥${amount.toStringAsFixed(2)}',
+                            '${amount.toStringAsFixed(2)} 小懿币',
                             style: TextStyle(
                               fontSize: 12,
                               color: theme.colorScheme.primary,

@@ -95,11 +95,7 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载存档失败：$e')),
-        );
-      }
+      // 静默处理加载存档错误
     }
   }
 
@@ -341,6 +337,30 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_currentArchive == null) {
       await _createArchive();
       if (_currentArchive == null) return;
+    }
+
+    // 清理旧对话，保持在最大轮数限制内
+    final maxMessages = _modelConfig.maxRounds * 2; // 一轮对话包含用户和AI各一条消息
+    if (_currentArchive!.messages.length >= maxMessages) {
+      // 计算需要删除的消息数量（保持偶数，确保对话完整性）
+      final messagesToRemove =
+          (_currentArchive!.messages.length - maxMessages + 2) ~/ 2 * 2;
+      final updatedMessages =
+          _currentArchive!.messages.sublist(messagesToRemove);
+
+      await _archiveRepository.updateArchiveMessages(
+        _character.id,
+        _currentArchive!.id,
+        updatedMessages,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentArchive = _currentArchive!.copyWith(
+            messages: updatedMessages,
+          );
+        });
+      }
     }
 
     setState(() => _isLoading = true);

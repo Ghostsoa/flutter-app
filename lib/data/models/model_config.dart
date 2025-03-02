@@ -18,10 +18,10 @@ class ModelConfig {
     required this.model,
     this.temperature = 0.7,
     this.topP = 1.0,
-    this.maxTokens = 2000,
+    this.maxTokens = 8196,
     this.presencePenalty = 0.0,
     this.frequencyPenalty = 0.0,
-    this.maxRounds = 20,
+    this.maxRounds = 200,
     this.streamResponse = true,
     this.chunkResponse = false,
   });

@@ -17,8 +17,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final LotteryApi _lotteryApi;
-  final bool _isSigningIn = false;
-  final bool _isDrawing = false;
+  bool _isSigningIn = false;
+  bool _isDrawing = false;
   bool _isLoading = true;
   bool _hasNewAnnouncement = false;
 
@@ -99,6 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _handleSignIn() async {
+    if (_isSigningIn) return;
+    setState(() => _isSigningIn = true);
+
     try {
       await _lotteryApi.signInDaily();
       if (mounted) {
@@ -113,24 +116,45 @@ class _HomeScreenState extends State<HomeScreen> {
               content: Text(e.toString().contains('今日已签到') ? '今日已签到' : '签到失败')),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isSigningIn = false);
+      }
     }
   }
 
   Future<void> _handleDraw() async {
+    if (_isDrawing) return;
+    setState(() => _isDrawing = true);
+
     try {
-      await _lotteryApi.drawLottery();
+      final result = await _lotteryApi.drawLottery();
       if (mounted) {
+        final amount = result['amount'] as int; // 从返回的 Map 中获取 amount
+        final isProfit = amount > 0; // 大于0就是盈利（后台已计算成本）
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('抽奖成功')),
+          SnackBar(
+            content: Text(
+              isProfit ? '恭喜获得 $amount 小懿币！' : '再接再厉，本次亏损 ${amount.abs()} 小懿币',
+            ),
+            backgroundColor: isProfit ? Colors.green : Colors.orange,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(e.toString().contains('抽奖次数已用完') ? '抽奖次数已用完' : '抽奖失败')),
+            content:
+                Text(e.toString().contains('抽奖次数已用完') ? '抽奖次数已用完' : '抽奖失败'),
+            backgroundColor: Colors.red,
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDrawing = false);
       }
     }
   }
@@ -183,33 +207,24 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 功能网格
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 1.5,
-            children: [
-              // 幸运抽奖
-              FeatureCard(
-                title: '幸运抽奖',
-                icon: Icons.star,
-                color: theme.colorScheme.secondary,
-                onTap: _isDrawing ? null : _handleDraw,
-                isLoading: _isDrawing,
-              ),
-              // 邀请好友
-              FeatureCard(
-                title: '邀请好友',
-                icon: Icons.people,
-                color: theme.colorScheme.tertiary,
-                onTap: () {
-                  // TODO: 打开邀请页面
-                },
-              ),
-            ],
+          // 幸运抽奖卡片
+          FeatureCard(
+            title: '幸运抽奖',
+            icon: Icons.star,
+            color: theme.colorScheme.secondary,
+            onTap: _isDrawing ? null : _handleDraw,
+            isLoading: _isDrawing,
+            showInfo: true,
+            infoText: '抽奖说明：抽奖仅作为娱乐功能，切勿上头盲目抽奖\n\n'
+                '奖池概率：\n'
+                '520小懿币：0.5%\n'
+                '100小懿币：1.5%\n'
+                '50小懿币：8%\n'
+                '20小懿币：20%\n'
+                '10小懿币：40%\n'
+                '5小懿币：20%\n'
+                '1保底小懿币：10%\n\n'
+                '每次抽奖消耗10小懿币',
           ),
           const SizedBox(height: 16),
 

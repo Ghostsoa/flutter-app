@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/models/user.dart';
+import '../../../core/utils/logger.dart';
 
 class AuthController extends ChangeNotifier {
   static final AuthController _instance = AuthController._internal();
   factory AuthController() => _instance;
 
   late final AuthRepository _repository;
+  late final SharedPreferences _prefs;
   User? _currentUser;
   bool _isLoading = false;
 
@@ -17,20 +20,44 @@ class AuthController extends ChangeNotifier {
   AuthController._internal();
 
   Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
     _repository = await AuthRepository.create();
-    await _tryQuickLogin();
+    await _tryAutoLogin();
   }
 
-  Future<void> _tryQuickLogin() async {
+  Future<void> _tryAutoLogin() async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final result = await _repository.quickLogin();
-      if (result != null) {
-        final (user, _) = result;
-        _currentUser = user;
+      // 检查是否有保存的账号密码
+      final savedEmail = _prefs.getString('saved_email');
+      final savedPassword = _prefs.getString('saved_password');
+      final rememberMe = _prefs.getBool('remember_me') ?? false;
+
+      if (savedEmail != null && savedPassword != null && rememberMe) {
+        Logger.info('尝试使用保存的账号密码自动登录');
+        // 先尝试快速登录
+        final quickLoginResult = await _repository.quickLogin();
+
+        if (quickLoginResult != null) {
+          final (user, _) = quickLoginResult;
+          _currentUser = user;
+          Logger.info('快速登录成功');
+        } else {
+          // 如果快速登录失败，尝试使用账号密码登录
+          Logger.info('快速登录失败，尝试使用账号密码登录');
+          final (user, _) = await _repository.login(savedEmail, savedPassword);
+          _currentUser = user;
+          Logger.info('账号密码登录成功');
+        }
       }
+    } catch (e, stackTrace) {
+      Logger.error('自动登录失败', error: e, stackTrace: stackTrace);
+      // 清除保存的登录信息
+      await _prefs.remove('saved_email');
+      await _prefs.remove('saved_password');
+      await _prefs.setBool('remember_me', false);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -128,6 +155,10 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     await _repository.logout();
     _currentUser = null;
+    // 清除保存的登录信息
+    await _prefs.remove('saved_email');
+    await _prefs.remove('saved_password');
+    await _prefs.setBool('remember_me', false);
     notifyListeners();
   }
 }

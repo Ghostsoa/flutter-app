@@ -17,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _authController = AuthController();
   bool _isRefreshing = false;
-  late final WalletApi _walletApi;
+  WalletApi? _walletApi;
   double _balance = 0;
   bool _isLoading = true;
 
@@ -28,9 +28,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _initWalletApi() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
     try {
       Logger.info('初始化钱包API');
       _walletApi = await WalletApi.getInstance();
+
+      // 添加短暂延迟，确保 DioClient 完全初始化
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) return;
       await _refreshBalance();
     } catch (e, stackTrace) {
       Logger.error('钱包API初始化失败', error: e, stackTrace: stackTrace);
@@ -47,28 +55,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _refreshBalance() async {
-    if (_isRefreshing) return;
+    if (_isRefreshing || _walletApi == null) return;
     setState(() => _isRefreshing = true);
+
     try {
-      Logger.info('获取余额');
-      final balance = await _walletApi.getBalance();
+      Logger.info('获取小懿币');
+      await Future.delayed(const Duration(milliseconds: 50)); // 添加短暂延迟
+      final balance = await _walletApi!.getBalance();
       if (mounted) {
         setState(() {
           _balance = balance;
           _isRefreshing = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('余额已更新')),
-        );
       }
     } catch (e, stackTrace) {
-      Logger.error('获取余额失败', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('更新失败：$e')),
-        );
-      }
-    } finally {
+      Logger.error('获取小懿币', error: e, stackTrace: stackTrace);
       if (mounted) {
         setState(() => _isRefreshing = false);
       }
@@ -76,7 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showTransactionHistory() async {
-    if (!mounted) return;
+    if (!mounted || _walletApi == null) return;
 
     await showModalBottomSheet(
       context: context,
@@ -90,10 +91,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
         maxChildSize: 0.95,
         expand: false,
         builder: (context, scrollController) => TransactionHistorySheet(
-          walletApi: _walletApi,
+          walletApi: _walletApi!,
         ),
       ),
     );
+  }
+
+  Future<void> _showAboutDialog() async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('关于'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('版本：1.0'),
+            const SizedBox(height: 16),
+            const Text(
+              '免责声明',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '1. 本服务仅作为AI大语言模型的中转服务，所有生成的内容均由AI模型自动生成。\n\n'
+              '2. 用户在使用本服务时必须遵守所有适用的法律法规。严禁使用本服务：\n'
+              '   · 从事任何违法违规活动\n'
+              '   · 生成违法、暴力、色情等不当内容\n'
+              '   · 侵犯他人知识产权或其他合法权益\n\n'
+              '3. 用户对使用本服务的一切行为及结果承担全部责任。\n\n'
+              '4. 本服务不对AI生成内容的准确性、完整性、适用性提供任何明示或暗示的保证。\n\n'
+              '5. 我们保留在发现违规行为时终止服务的权利。',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('我知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showHelpDialog() async {
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('帮助与反馈'),
+        content: const Text('即将跳转到官网页面，是否继续？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    const url = 'https://wyy.xiaoyi.live';
+    try {
+      Logger.info('正在打开帮助页面：$url');
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url));
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('无法打开帮助页面')),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      Logger.error('打开帮助页面失败', error: e, stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('打开帮助页面失败：$e')),
+        );
+      }
+    }
   }
 
   @override
@@ -289,7 +378,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildActionTile(
         theme,
         icon: Icons.account_balance_wallet,
-        title: '获取小懿币',
+        title: '赞助我们',
         onTap: () async {
           const url = 'https://h5c.fakamiao.top/shopDetail/ayLoyH';
           try {
@@ -326,22 +415,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         theme,
         icon: Icons.help_outline,
         title: '帮助与反馈',
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('帮助功能开发中...')),
-          );
-        },
+        onTap: _showHelpDialog,
       ),
       const Divider(indent: 72),
       _buildActionTile(
         theme,
         icon: Icons.info_outline,
         title: '关于',
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('关于功能开发中...')),
-          );
-        },
+        onTap: _showAboutDialog,
       ),
     ];
   }

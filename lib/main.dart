@@ -3,15 +3,29 @@ import 'core/utils/logger.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/main/screens/main_screen.dart';
+import 'features/auth/controllers/auth_controller.dart';
 
-void main() {
+void main() async {
+  // 确保 Flutter 绑定初始化
+  WidgetsFlutterBinding.ensureInitialized();
+
   // 启用日志
   Logger.enable();
-  runApp(const MyApp());
+
+  // 初始化 AuthController
+  final authController = AuthController();
+  await authController.init();
+
+  runApp(MyApp(authController: authController));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AuthController authController;
+
+  const MyApp({
+    super.key,
+    required this.authController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +65,8 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      initialRoute: '/login',
+      // 根据登录状态决定初始路由
+      initialRoute: authController.currentUser != null ? '/main' : '/login',
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
