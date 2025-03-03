@@ -3,14 +3,19 @@ import 'package:flutter/services.dart';
 import '../../../data/models/character.dart';
 import '../../../data/models/model_config.dart';
 import '../../../data/models/chat_archive.dart';
+import '../../../data/models/chat_message.dart';
 import '../../../data/repositories/character_repository.dart';
 import '../../../data/repositories/model_config_repository.dart';
 import '../../../data/repositories/chat_archive_repository.dart';
-import '../../../core/network/api/chat_api.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_input.dart';
 import '../widgets/chat_message_list.dart';
-import 'dart:io';
+import '../widgets/chat_empty_state.dart';
+import '../widgets/chat_distilling_indicator.dart';
+import '../widgets/chat_background.dart';
+import '../widgets/chat_greeting.dart';
+import '../services/chat_archive_manager.dart';
+import '../services/chat_message_handler.dart';
 
 class ChatScreen extends StatefulWidget {
   final Character character;
@@ -30,11 +35,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isLoading = false;
+  bool _isDistilling = false;
   late Character _character;
   late ModelConfig _modelConfig;
   late final CharacterRepository _characterRepository;
   late final ModelConfigRepository _modelConfigRepository;
-  late final ChatArchiveRepository _archiveRepository;
+  late final ChatArchiveManager _archiveManager;
+  late final ChatMessageHandler _messageHandler;
   List<ChatArchive> _archives = [];
   ChatArchive? _currentArchive;
   String _currentResponse = '';
@@ -44,17 +51,25 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _character = widget.character;
     _modelConfig = widget.modelConfig;
-    _initRepositories();
-    // 设置为全屏模式
+    _initServices();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
   }
 
-  Future<void> _initRepositories() async {
+  Future<void> _initServices() async {
     _characterRepository = await CharacterRepository.create();
     _modelConfigRepository = await ModelConfigRepository.create();
-    _archiveRepository = await ChatArchiveRepository.create();
+    final archiveRepository = await ChatArchiveRepository.create();
 
-    // 获取最新的角色数据
+    _archiveManager = ChatArchiveManager(
+      characterId: _character.id,
+      repository: archiveRepository,
+    );
+
+    _messageHandler = ChatMessageHandler(
+      character: _character,
+      modelConfig: _modelConfig,
+    );
+
     try {
       final latestCharacter =
           await _characterRepository.getCharacterById(_character.id);
@@ -74,10 +89,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadArchives() async {
     try {
-      final archives = await _archiveRepository.getArchives(_character.id);
+      final archives = await _archiveManager.getArchives();
       if (mounted) {
-        final lastArchiveId =
-            await _archiveRepository.getLastArchiveId(_character.id);
+        final lastArchiveId = await _archiveManager.getLastArchiveId();
         ChatArchive? currentArchive;
 
         if (lastArchiveId != null) {
@@ -135,14 +149,32 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (name != null) {
       try {
-        final archive = await _archiveRepository.createArchive(
-          _character.id,
-          name,
-        );
+        // 创建一个新的存档
+        final archive = await _archiveManager.createArchive(name);
+        ChatArchive updatedArchive = archive;
+
+        // 如果角色有开场白，添加开场白消息
+        if (_character.greeting != null && _character.greeting!.isNotEmpty) {
+          final greetingMessage =
+              _messageHandler.createSystemMessage(_character.greeting!);
+          final messages = [greetingMessage];
+          await _archiveManager.updateArchiveMessages(
+            archive.id,
+            messages,
+            uiMessages: messages,
+          );
+          updatedArchive = archive.copyWith(
+            messages: messages,
+            uiMessages: messages,
+          );
+        }
+
+        // 自动切换到新存档
+        await _archiveManager.saveLastArchiveId(archive.id);
         if (mounted) {
+          await _loadArchives();
           setState(() {
-            _archives.add(archive);
-            _currentArchive = archive;
+            _currentArchive = updatedArchive;
           });
         }
       } catch (e) {
@@ -221,10 +253,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                       if (confirmed == true && mounted) {
                         try {
-                          await _archiveRepository.deleteArchive(
-                            _character.id,
-                            archive.id,
-                          );
+                          await _archiveManager.deleteArchive(archive.id);
                           if (mounted) {
                             setState(() {
                               _archives.removeWhere((a) => a.id == archive.id);
@@ -264,8 +293,7 @@ class _ChatScreenState extends State<ChatScreen> {
         selectedArchive != null &&
         selectedArchive.id != _currentArchive?.id) {
       setState(() => _currentArchive = selectedArchive);
-      await _archiveRepository.saveLastArchiveId(
-          _character.id, selectedArchive.id);
+      await _archiveManager.saveLastArchiveId(selectedArchive.id);
       await _loadArchives(); // 重新加载以确保数据最新
     }
   }
@@ -339,50 +367,31 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_currentArchive == null) return;
     }
 
-    // 清理旧对话，保持在最大轮数限制内
-    final maxMessages = _modelConfig.maxRounds * 2; // 一轮对话包含用户和AI各一条消息
-    if (_currentArchive!.messages.length >= maxMessages) {
-      // 计算需要删除的消息数量（保持偶数，确保对话完整性）
-      final messagesToRemove =
-          (_currentArchive!.messages.length - maxMessages + 2) ~/ 2 * 2;
-      final updatedMessages =
-          _currentArchive!.messages.sublist(messagesToRemove);
+    setState(() => _isLoading = true);
+    _messageController.clear();
+    FocusScope.of(context).unfocus();
 
-      await _archiveRepository.updateArchiveMessages(
-        _character.id,
+    try {
+      final message = await _messageHandler.createUserMessage(content);
+      final updatedMessages = [..._currentArchive!.messages, message];
+      final updatedUiMessages = [..._currentArchive!.uiMessages, message];
+
+      await _archiveManager.updateArchiveMessages(
         _currentArchive!.id,
         updatedMessages,
+        uiMessages: updatedUiMessages,
       );
 
       if (mounted) {
         setState(() {
           _currentArchive = _currentArchive!.copyWith(
             messages: updatedMessages,
+            uiMessages: updatedUiMessages,
           );
         });
-      }
-    }
-
-    setState(() => _isLoading = true);
-    _messageController.clear();
-    // 隐藏输入法
-    FocusScope.of(context).unfocus();
-
-    try {
-      // 添加用户消息
-      final archive = await _archiveRepository.addMessage(
-        _character.id,
-        _currentArchive!.id,
-        content,
-        true,
-      );
-
-      if (mounted) {
-        setState(() => _currentArchive = archive);
         await _scrollToBottom();
       }
 
-      // 构建历史消息列表
       final messages = _currentArchive!.messages.map((msg) {
         return {
           'role': msg.isUser ? 'user' : 'assistant',
@@ -390,112 +399,81 @@ class _ChatScreenState extends State<ChatScreen> {
         };
       }).toList();
 
-      // 根据配置选择使用流式还是非流式请求
       if (_modelConfig.streamResponse) {
-        // 使用流式请求
         String response = '';
-        await for (final chunk in ChatApi.instance.sendStreamChatRequest(
-          character: _character,
-          modelConfig: _modelConfig,
-          messages: messages,
-        )) {
+        await for (final chunk
+            in _messageHandler.sendStreamChatRequest(messages)) {
           response += chunk;
           if (mounted) {
             setState(() => _currentResponse = response);
           }
         }
 
-        // 保存完整的响应
         if (mounted) {
-          final updatedArchive = await _archiveRepository.addMessage(
-            _character.id,
+          final (cleanContent, statusInfo) =
+              ChatMessage.extractStatusInfo(response);
+          final aiMessage =
+              _messageHandler.createAIMessage(cleanContent, statusInfo);
+          final newMessages = [..._currentArchive!.messages, aiMessage];
+          final newUiMessages = [..._currentArchive!.uiMessages, aiMessage];
+
+          await _archiveManager.updateArchiveMessages(
             _currentArchive!.id,
-            response,
-            false,
+            newMessages,
+            uiMessages: newUiMessages,
           );
+
           setState(() {
-            _currentArchive = updatedArchive;
+            _currentArchive = _currentArchive!.copyWith(
+              messages: newMessages,
+              uiMessages: newUiMessages,
+            );
             _currentResponse = '';
             _isLoading = false;
           });
-          await _archiveRepository.saveLastArchiveId(
-              _character.id, updatedArchive.id);
-          await _scrollToBottom();
-        }
-      } else {
-        // 使用非流式请求
-        String response = '';
-        await for (final segment in ChatApi.instance.sendChatRequest(
-          character: _character,
-          modelConfig: _modelConfig,
-          messages: messages,
-        )) {
-          if (segment.startsWith('[MESSAGE]')) {
-            // 这是一个新的消息段，需要创建新的气泡
-            final messageContent = segment.substring(9); // 移除 [MESSAGE] 标记
-            final updatedArchive = await _archiveRepository.addMessage(
-              _character.id,
-              _currentArchive!.id,
-              messageContent,
-              false,
-            );
-            if (mounted) {
-              setState(() {
-                _currentArchive = updatedArchive;
-              });
-              await _scrollToBottom();
-              // 添加延时效果
-              await Future.delayed(const Duration(milliseconds: 500));
-            }
-          } else if (segment.startsWith('[STATUS]')) {
-            // 这是一个带状态信息的消息
-            final content = segment.substring(7); // 移除 [STATUS] 标记
-            final statusEndIndex = content.indexOf('[CONTENT]');
-            if (statusEndIndex != -1) {
-              final statusInfo = content.substring(0, statusEndIndex);
-              final messageContent =
-                  content.substring(statusEndIndex + 9); // 移除 [CONTENT] 标记
 
-              final updatedArchive = await _archiveRepository.addMessage(
-                _character.id,
-                _currentArchive!.id,
-                messageContent,
-                false,
-                statusInfo: statusInfo,
-              );
-              if (mounted) {
-                setState(() {
-                  _currentArchive = updatedArchive;
-                });
-                await _scrollToBottom();
-              }
-            }
-          } else {
-            // 普通模式，累积完整响应
-            response += segment;
+          await _archiveManager.saveLastArchiveId(_currentArchive!.id);
+          await _scrollToBottom();
+
+          if (_modelConfig.enableDistillation &&
+              newMessages.length >= _modelConfig.distillationRounds * 2) {
+            await _performDistillation();
           }
         }
+      } else {
+        final response = await _messageHandler.sendChatRequest(messages);
 
-        // 如果是普通模式，保存完整的响应
-        if (!_modelConfig.chunkResponse && response.isNotEmpty && mounted) {
-          final updatedArchive = await _archiveRepository.addMessage(
-            _character.id,
+        if (response.isNotEmpty && mounted) {
+          final (cleanContent, statusInfo) =
+              ChatMessage.extractStatusInfo(response);
+          final aiMessage =
+              _messageHandler.createAIMessage(cleanContent, statusInfo);
+          final newMessages = [..._currentArchive!.messages, aiMessage];
+          final newUiMessages = [..._currentArchive!.uiMessages, aiMessage];
+
+          await _archiveManager.updateArchiveMessages(
             _currentArchive!.id,
-            response,
-            false,
+            newMessages,
+            uiMessages: newUiMessages,
           );
+
           setState(() {
-            _currentArchive = updatedArchive;
+            _currentArchive = _currentArchive!.copyWith(
+              messages: newMessages,
+              uiMessages: newUiMessages,
+            );
             _isLoading = false;
           });
-          await _archiveRepository.saveLastArchiveId(
-              _character.id, updatedArchive.id);
+
+          await _archiveManager.saveLastArchiveId(_currentArchive!.id);
           await _scrollToBottom();
+
+          if (_modelConfig.enableDistillation &&
+              newMessages.length >= _modelConfig.distillationRounds * 2) {
+            await _performDistillation();
+          }
         } else {
-          // 分段模式已经保存了所有消息，只需要更新状态
-          setState(() {
-            _isLoading = false;
-          });
+          setState(() => _isLoading = false);
         }
       }
     } catch (e) {
@@ -514,16 +492,19 @@ class _ChatScreenState extends State<ChatScreen> {
         // 从记录中删除最后一条用户消息
         if (_currentArchive != null && _currentArchive!.messages.isNotEmpty) {
           final updatedMessages = _currentArchive!.messages.toList();
+          final updatedUiMessages = _currentArchive!.uiMessages.toList();
           if (updatedMessages.last.isUser) {
             updatedMessages.removeLast();
-            await _archiveRepository.updateArchiveMessages(
-              _character.id,
+            updatedUiMessages.removeLast();
+            await _archiveManager.updateArchiveMessages(
               _currentArchive!.id,
               updatedMessages,
+              uiMessages: updatedUiMessages,
             );
             setState(() {
               _currentArchive = _currentArchive!.copyWith(
                 messages: updatedMessages,
+                uiMessages: updatedUiMessages,
               );
             });
           }
@@ -538,6 +519,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       // 获取最后一轮对话的用户输入
       final messages = _currentArchive!.messages;
+      final uiMessages = _currentArchive!.uiMessages;
       String? userInput;
 
       // 从后往前找到最近的一轮对话
@@ -550,21 +532,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
       // 删除最后一轮对话
       final updatedMessages = messages.toList();
-      if (updatedMessages.isNotEmpty) {
-        // 如果最后一条是 AI 的回复，删除它
-        if (!updatedMessages.last.isUser) {
-          updatedMessages.removeLast();
-        }
-        // 如果倒数第二条是用户的输入，也删除它
-        if (updatedMessages.isNotEmpty && updatedMessages.last.isUser) {
-          updatedMessages.removeLast();
+      final updatedUiMessages = uiMessages.toList();
+
+      // 如果最后一条是 AI 的回复，删除它
+      if (updatedMessages.isNotEmpty && !updatedMessages.last.isUser) {
+        updatedMessages.removeLast();
+        // 从 UI 消息中删除所有最后一轮的 AI 回复（可能有多条）
+        while (updatedUiMessages.isNotEmpty && !updatedUiMessages.last.isUser) {
+          updatedUiMessages.removeLast();
         }
       }
 
-      await _archiveRepository.updateArchiveMessages(
-        _character.id,
+      // 如果倒数第二条是用户的输入，也删除它
+      if (updatedMessages.isNotEmpty && updatedMessages.last.isUser) {
+        updatedMessages.removeLast();
+        updatedUiMessages.removeLast();
+      }
+
+      await _archiveManager.updateArchiveMessages(
         _currentArchive!.id,
         updatedMessages,
+        uiMessages: updatedUiMessages,
       );
 
       if (mounted) {
@@ -579,6 +567,7 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _currentArchive = _currentArchive!.copyWith(
             messages: updatedMessages,
+            uiMessages: updatedUiMessages,
           );
         });
       }
@@ -591,131 +580,217 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  /// 执行上下文蒸馏
+  Future<void> _performDistillation() async {
+    if (!mounted) return;
+
+    setState(() => _isDistilling = true);
+
+    try {
+      final distilledContent = await _messageHandler.distillContext(
+        _currentArchive!.messages,
+        _modelConfig.distillationModel,
+      );
+
+      final uiMessages =
+          _currentArchive!.uiMessages.map((msg) => msg.copyWith()).toList();
+      uiMessages.add(_messageHandler.createSystemMessage('系统已对以上对话进行了记忆整理'));
+
+      final historyMessages = [
+        ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          content: '[历史记忆]$distilledContent',
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      ];
+
+      await _archiveManager.updateArchiveMessages(
+        _currentArchive!.id,
+        historyMessages,
+        uiMessages: uiMessages,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentArchive = _currentArchive!.copyWith(
+            messages: historyMessages,
+            uiMessages: uiMessages,
+          );
+          _isDistilling = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isDistilling = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('记忆整理失败：$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleMessageEdit(
+      ChatMessage message, String newContent) async {
+    if (_currentArchive == null) return;
+
+    try {
+      // 更新UI消息
+      final updatedUiMessages = _currentArchive!.uiMessages.map((msg) {
+        if (msg.id == message.id) {
+          return msg.copyWith(content: newContent);
+        }
+        return msg;
+      }).toList();
+
+      // 更新实际消息
+      final updatedMessages = _currentArchive!.messages.map((msg) {
+        if (msg.id == message.id) {
+          return msg.copyWith(content: newContent);
+        }
+        return msg;
+      }).toList();
+
+      await _archiveManager.updateArchiveMessages(
+        _currentArchive!.id,
+        updatedMessages,
+        uiMessages: updatedUiMessages,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentArchive = _currentArchive!.copyWith(
+            messages: updatedMessages,
+            uiMessages: updatedUiMessages,
+          );
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('编辑失败：$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleReset() async {
+    // 显示确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认重置'),
+        content: const Text('确定要重置对话吗？这将清空所有对话记录。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      if (_currentArchive != null) {
+        // 清空消息记录
+        await _archiveManager.updateArchiveMessages(
+          _currentArchive!.id,
+          [],
+          uiMessages: [],
+        );
+
+        setState(() {
+          _currentArchive = _currentArchive!.copyWith(
+            messages: [],
+            uiMessages: [],
+          );
+        });
+
+        // 如果有开场白，添加为系统消息
+        if (_character.greeting != null && _character.greeting!.isNotEmpty) {
+          final greetingMessage = ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            content: _character.greeting!,
+            isUser: false,
+            timestamp: DateTime.now(),
+            isSystemMessage: true,
+          );
+          await _archiveManager.updateArchiveMessages(
+            _currentArchive!.id,
+            [greetingMessage],
+            uiMessages: [greetingMessage],
+          );
+
+          setState(() {
+            _currentArchive = _currentArchive!.copyWith(
+              messages: [greetingMessage],
+              uiMessages: [greetingMessage],
+            );
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('重置失败：$e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        decoration: BoxDecoration(
-          image: _character.coverImageUrl != null
-              ? DecorationImage(
-                  image: _character.coverImageUrl!.startsWith('/')
-                      ? FileImage(File(_character.coverImageUrl!))
-                          as ImageProvider
-                      : NetworkImage(_character.coverImageUrl!),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(_character.backgroundOpacity),
-                    BlendMode.darken,
-                  ),
-                )
-              : null,
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (_currentArchive != null) ...[
-              ChatMessageList(
-                controller: _scrollController,
-                archive: _currentArchive!,
-                characterImageUrl: _character.coverImageUrl,
-                useMarkdown: _character.useMarkdown,
-                userBubbleColor: _character.userBubbleColor,
-                aiBubbleColor: _character.aiBubbleColor,
-                userTextColor: _character.userTextColor,
-                aiTextColor: _character.aiTextColor,
-                streamingText: _currentResponse,
-              ),
-              ChatAppBar(
-                character: _character,
-                modelConfig: _modelConfig,
-                onCharacterUpdated: _handleCharacterUpdated,
-                onModelConfigUpdated: _handleModelConfigUpdated,
-                onArchivePressed: _switchArchive,
-                onUndoPressed: _handleUndo,
-              ),
-              ChatInput(
-                controller: _messageController,
-                isLoading: _isLoading,
-                onSendPressed: _handleSendMessage,
-              ),
-            ] else
-              Stack(
-                children: [
-                  // 空状态界面
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.history,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '没有可用的存档',
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _createArchive,
-                          icon: const Icon(Icons.add),
-                          label: const Text('新建存档'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // 只显示基本的顶部栏
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: SafeArea(
-                        child: Container(
-                          height: kToolbarHeight,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back_ios_new,
-                                    color: Colors.white),
-                                onPressed: () => Navigator.of(context).pop(),
-                                splashRadius: 24,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  _character.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              // 只显示新建存档按钮
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.add, color: Colors.white),
-                                onPressed: _createArchive,
-                                splashRadius: 24,
-                                tooltip: '新建存档',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
+      body: ChatBackground(
+        coverImageUrl: _character.coverImageUrl,
+        backgroundOpacity: _character.backgroundOpacity,
+        children: [
+          if (_currentArchive != null) ...[
+            ChatMessageList(
+              controller: _scrollController,
+              archive: _currentArchive!,
+              characterImageUrl: _character.coverImageUrl,
+              useMarkdown: _character.useMarkdown,
+              userBubbleColor: _character.userBubbleColor,
+              aiBubbleColor: _character.aiBubbleColor,
+              userTextColor: _character.userTextColor,
+              aiTextColor: _character.aiTextColor,
+              streamingText: _currentResponse,
+              messageFilter: (message) => !message.content.contains('[历史记忆]'),
+              onMessageEdit: _handleMessageEdit,
+              greetingBuilder:
+                  _character.greeting != null && _character.greeting!.isNotEmpty
+                      ? (context) => ChatGreeting(
+                            message: _character.greeting!,
+                            useMarkdown: _character.useMarkdown,
+                          )
+                      : null,
+            ),
+            ChatDistillingIndicator(isDistilling: _isDistilling),
+            ChatAppBar(
+              character: _character,
+              modelConfig: _modelConfig,
+              onCharacterUpdated: _handleCharacterUpdated,
+              onModelConfigUpdated: _handleModelConfigUpdated,
+              onArchivePressed: _switchArchive,
+              onUndoPressed: _handleUndo,
+              onResetPressed: _handleReset,
+            ),
+            ChatInput(
+              controller: _messageController,
+              isLoading: _isLoading,
+              onSendPressed: _handleSendMessage,
+            ),
+          ] else
+            ChatEmptyState(onCreateArchive: _createArchive),
+        ],
       ),
     );
   }

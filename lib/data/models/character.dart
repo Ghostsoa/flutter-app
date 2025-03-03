@@ -28,6 +28,7 @@ class Character {
   final String description;
   final String? coverImageUrl;
   final String? userSetting; // 用户设定
+  final String? greeting; // 开场白
   final bool useMarkdown; // 是否使用Markdown格式化
   final bool hasStatus; // 是否启用状态
   final List<CharacterStatus> statusList; // 状态列表
@@ -45,6 +46,7 @@ class Character {
     required this.description,
     this.coverImageUrl,
     this.userSetting,
+    this.greeting,
     this.useMarkdown = false,
     this.hasStatus = false,
     this.statusList = const [],
@@ -65,6 +67,7 @@ class Character {
     String? description,
     String? coverImageUrl,
     String? userSetting,
+    String? greeting,
     bool? useMarkdown,
     bool? hasStatus,
     List<CharacterStatus>? statusList,
@@ -80,6 +83,7 @@ class Character {
       description: description ?? this.description,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       userSetting: userSetting ?? this.userSetting,
+      greeting: greeting ?? this.greeting,
       useMarkdown: useMarkdown ?? this.useMarkdown,
       hasStatus: hasStatus ?? this.hasStatus,
       statusList: statusList ?? this.statusList,

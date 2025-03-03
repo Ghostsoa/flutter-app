@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/chat_archive.dart';
+import '../../../data/models/chat_message.dart';
 import 'chat_bubble.dart';
+import 'chat_system_hint.dart';
 
 class ChatMessageList extends StatefulWidget {
   final ScrollController controller;
@@ -12,6 +14,9 @@ class ChatMessageList extends StatefulWidget {
   final String userTextColor;
   final String aiTextColor;
   final String streamingText;
+  final bool Function(ChatMessage)? messageFilter;
+  final Function(ChatMessage, String)? onMessageEdit;
+  final WidgetBuilder? greetingBuilder;
 
   const ChatMessageList({
     super.key,
@@ -24,6 +29,9 @@ class ChatMessageList extends StatefulWidget {
     required this.userTextColor,
     required this.aiTextColor,
     this.streamingText = '',
+    this.messageFilter,
+    this.onMessageEdit,
+    this.greetingBuilder,
   });
 
   @override
@@ -33,8 +41,16 @@ class ChatMessageList extends StatefulWidget {
 class _ChatMessageListState extends State<ChatMessageList> {
   void _scrollToBottom() {
     if (widget.controller.hasClients && widget.archive.messages.isNotEmpty) {
-      widget.controller.jumpTo(0); // 因为使用了 reverse: true，所以滚动到 0 就是滚动到最新消息
+      widget.controller.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
+  }
+
+  void _handleMessageEdit(ChatMessage message, String newContent) {
+    widget.onMessageEdit?.call(message, newContent);
   }
 
   @override
@@ -55,13 +71,18 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
+    final messages = widget.archive.uiMessages
+        .where((msg) => widget.messageFilter?.call(msg) ?? true)
+        .toList();
+
+    return SafeArea(
+      bottom: false,
       child: ListView(
-        controller: widget.controller,
         reverse: true,
+        controller: widget.controller,
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
-          bottom: 100,
+          top: 100,
+          bottom: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
           left: 16,
           right: 16,
         ),
@@ -74,7 +95,14 @@ class _ChatMessageListState extends State<ChatMessageList> {
               bubbleColor: widget.aiBubbleColor,
               textColor: widget.aiTextColor,
             ),
-          ...widget.archive.messages.reversed.map((message) {
+          ...messages.reversed.map((message) {
+            if (message.isSystemMessage) {
+              if (widget.greetingBuilder != null &&
+                  messages.indexOf(message) == 0) {
+                return widget.greetingBuilder!(context);
+              }
+              return ChatSystemHint(text: message.content);
+            }
             return ChatBubble(
               message: message,
               characterImageUrl: widget.characterImageUrl,
@@ -84,6 +112,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                   : widget.aiBubbleColor,
               textColor:
                   message.isUser ? widget.userTextColor : widget.aiTextColor,
+              onEdit: (newContent) => _handleMessageEdit(message, newContent),
             );
           }),
         ],

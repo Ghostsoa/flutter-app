@@ -72,7 +72,7 @@ class CharacterCard extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.upload_file),
               title: const Text('导出角色'),
-              subtitle: const Text('导出为加密的JSON文件'),
+              subtitle: const Text('导出为JSON文件'),
               onTap: () {
                 Navigator.pop(context);
                 onExport?.call();

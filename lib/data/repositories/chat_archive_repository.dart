@@ -82,8 +82,12 @@ class ChatArchiveRepository {
       statusInfo: statusInfo,
     );
 
+    final updatedMessages = [...archive.messages, message];
+    final updatedUiMessages = [...archive.uiMessages, message];
+
     final updatedArchive = archive.copyWith(
-      messages: [...archive.messages, message],
+      messages: updatedMessages,
+      uiMessages: updatedUiMessages,
       lastMessageAt: DateTime.now(),
     );
 
@@ -109,8 +113,9 @@ class ChatArchiveRepository {
   Future<void> updateArchiveMessages(
     String characterId,
     String archiveId,
-    List<ChatMessage> messages,
-  ) async {
+    List<ChatMessage> messages, {
+    List<ChatMessage>? uiMessages,
+  }) async {
     final archives = await getArchives(characterId);
     final index = archives.indexWhere((a) => a.id == archiveId);
     if (index == -1) throw Exception('存档不存在');
@@ -118,6 +123,7 @@ class ChatArchiveRepository {
     final archive = archives[index];
     final updatedArchive = archive.copyWith(
       messages: messages,
+      uiMessages: uiMessages,
       lastMessageAt:
           messages.isEmpty ? archive.createdAt : messages.last.timestamp,
     );

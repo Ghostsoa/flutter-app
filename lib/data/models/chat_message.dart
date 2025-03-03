@@ -8,7 +8,11 @@ class ChatMessage {
   final String content;
   final bool isUser;
   final DateTime timestamp;
-  final String? statusInfo; // 存储状态信息，格式如 "生命值:100,心情:开心,能量:80"
+  final String? statusInfo;
+  final bool isSystemMessage; // 是否是系统消息
+
+  // 用于提取状态信息的正则表达式
+  static final regex = RegExp(r'\[(.*?)\]');
 
   ChatMessage({
     required this.id,
@@ -16,16 +20,34 @@ class ChatMessage {
     required this.isUser,
     required this.timestamp,
     this.statusInfo,
+    this.isSystemMessage = false,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) =>
       _$ChatMessageFromJson(json);
   Map<String, dynamic> toJson() => _$ChatMessageToJson(this);
 
+  ChatMessage copyWith({
+    String? id,
+    String? content,
+    bool? isUser,
+    DateTime? timestamp,
+    String? statusInfo,
+    bool? isSystemMessage,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      content: content ?? this.content,
+      isUser: isUser ?? this.isUser,
+      timestamp: timestamp ?? this.timestamp,
+      statusInfo: statusInfo ?? this.statusInfo,
+      isSystemMessage: isSystemMessage ?? this.isSystemMessage,
+    );
+  }
+
   /// 从原始内容中提取状态信息，并返回清理后的内容
   static (String cleanContent, String? statusInfo) extractStatusInfo(
       String rawContent) {
-    final regex = RegExp(r'\[(.*?)\]');
     final matches = regex.allMatches(rawContent);
     String? foundStatus;
 

@@ -104,31 +104,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('关于'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('版本：1.0'),
-            const SizedBox(height: 16),
-            const Text(
-              '免责声明',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('版本：1.0'),
+              SizedBox(height: 16),
+              Text(
+                '免责声明',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '1. 本服务仅作为AI大语言模型的中转服务，所有生成的内容均由AI模型自动生成。\n\n'
-              '2. 用户在使用本服务时必须遵守所有适用的法律法规。严禁使用本服务：\n'
-              '   · 从事任何违法违规活动\n'
-              '   · 生成违法、暴力、色情等不当内容\n'
-              '   · 侵犯他人知识产权或其他合法权益\n\n'
-              '3. 用户对使用本服务的一切行为及结果承担全部责任。\n\n'
-              '4. 本服务不对AI生成内容的准确性、完整性、适用性提供任何明示或暗示的保证。\n\n'
-              '5. 我们保留在发现违规行为时终止服务的权利。',
-              style: TextStyle(fontSize: 14),
-            ),
-          ],
+              SizedBox(height: 8),
+              Text(
+                '1. 本服务仅作为AI大语言模型的中转服务，所有生成的内容均由AI模型自动生成。',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '2. 用户在使用本服务时必须遵守所有适用的法律法规。严禁使用本服务：',
+                style: TextStyle(fontSize: 13),
+              ),
+              Padding(
+                padding: EdgeInsets.only(left: 12, top: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('· 从事任何违法违规活动', style: TextStyle(fontSize: 13)),
+                    Text('· 生成违法、暴力、色情等不当内容', style: TextStyle(fontSize: 13)),
+                    Text('· 侵犯他人知识产权或其他合法权益', style: TextStyle(fontSize: 13)),
+                  ],
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '3. 用户对使用本服务的一切行为及结果承担全部责任。',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '4. 本服务不对AI生成内容的准确性、完整性、适用性提供任何明示或暗示的保证。',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '5. 我们保留在发现违规行为时终止服务的权利。',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

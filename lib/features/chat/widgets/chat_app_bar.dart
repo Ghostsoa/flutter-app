@@ -13,6 +13,7 @@ class ChatAppBar extends StatelessWidget {
   final Function(ModelConfig)? onModelConfigUpdated;
   final VoidCallback? onArchivePressed;
   final VoidCallback? onUndoPressed;
+  final VoidCallback? onResetPressed;
 
   const ChatAppBar({
     super.key,
@@ -23,6 +24,7 @@ class ChatAppBar extends StatelessWidget {
     this.onModelConfigUpdated,
     this.onArchivePressed,
     this.onUndoPressed,
+    this.onResetPressed,
   });
 
   Future<void> _showSettingsMenu(BuildContext context) async {
@@ -173,6 +175,12 @@ class ChatAppBar extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: onResetPressed,
+                  splashRadius: 24,
+                  tooltip: '重置对话',
                 ),
                 IconButton(
                   icon: const Icon(Icons.undo, color: Colors.white),

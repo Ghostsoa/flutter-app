@@ -16,7 +16,7 @@ class DioClient {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       headers: {
-        'X-Client-Version': '2.0',
+        'X-Client-Version': '2.1',
         'Content-Type': 'application/json',
       },
       validateStatus: (status) => status != null && status < 500,

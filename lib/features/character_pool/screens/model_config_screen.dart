@@ -54,9 +54,7 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                 maxTokens: 2000,
                 presencePenalty: 0.0,
                 frequencyPenalty: 0.0,
-                maxRounds: 20,
                 streamResponse: true,
-                chunkResponse: false,
               );
           _isLoading = false;
         });
@@ -87,9 +85,10 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
         maxTokens: _config!.maxTokens,
         presencePenalty: _config!.presencePenalty,
         frequencyPenalty: _config!.frequencyPenalty,
-        maxRounds: _config!.maxRounds,
         streamResponse: _config!.streamResponse,
-        chunkResponse: _config!.chunkResponse,
+        enableDistillation: _config!.enableDistillation,
+        distillationRounds: _config!.distillationRounds,
+        distillationModel: _config!.distillationModel,
       );
 
       await _repository.saveConfig(config);
@@ -193,7 +192,23 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
               items: _availableModels.map((model) {
                 return DropdownMenuItem(
                   value: model.name,
-                  child: Text(model.name),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(model.name),
+                      if (_config!.model != model.name) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '输入：${model.inputPrice / 10000}/1K tokens  输出：${model.outputPrice / 10000}/1K tokens',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -202,6 +217,11 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                     _config = _config!.copyWith(model: value);
                   });
                 }
+              },
+              selectedItemBuilder: (BuildContext context) {
+                return _availableModels.map((model) {
+                  return Text(model.name);
+                }).toList();
               },
             ),
             const SizedBox(height: 24),
@@ -282,22 +302,6 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
               divisions: 40,
             ),
 
-            // Max Rounds
-            _buildSlider(
-              label: '最大对话轮数',
-              description: '控制单个会话的最大对话轮数。超过此数量将自动结束会话。',
-              value: _config!.maxRounds.toDouble(),
-              onChanged: (value) {
-                setState(() {
-                  _config = _config!.copyWith(maxRounds: value.round());
-                });
-              },
-              min: 5,
-              max: 200,
-              divisions: 195,
-              valueFormatter: (value) => value.round().toString(),
-            ),
-
             const SizedBox(height: 24),
 
             // 流式响应开关
@@ -323,8 +327,6 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                             setState(() {
                               _config = _config!.copyWith(
                                 streamResponse: value,
-                                // 如果开启流式响应，自动关闭分段返回
-                                chunkResponse: false,
                               );
                             });
                           },
@@ -332,7 +334,7 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                       ],
                     ),
                     Text(
-                      '开启后将实时显示模型的响应内容，关闭后可以使用分段返回模式',
+                      '开启后将实时显示模型的响应内容',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -345,7 +347,7 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
 
             const SizedBox(height: 16),
 
-            // 分段返回开关
+            // 上下文蒸馏设置
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -356,33 +358,138 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          '分段返回',
+                          '上下文蒸馏(Beta测试)',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Switch(
-                          value: _config!.chunkResponse,
-                          onChanged: _config!.streamResponse
-                              ? null
-                              : (value) {
-                                  setState(() {
-                                    _config = _config!.copyWith(
-                                      chunkResponse: value,
-                                    );
-                                  });
-                                },
+                          value: _config!.enableDistillation,
+                          onChanged: (value) {
+                            setState(() {
+                              _config = _config!.copyWith(
+                                enableDistillation: value,
+                              );
+                            });
+                          },
                         ),
                       ],
                     ),
                     Text(
-                      '仅在关闭流式响应时可用，开启后将每句话显示在单独的气泡中',
+                      '开启后将在达到指定轮数时自动进行上下文蒸馏，以保持对话质量',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
                       ),
                     ),
+                    if (_config!.enableDistillation) ...[
+                      const SizedBox(height: 16),
+                      // 蒸馏轮数设置
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '蒸馏轮数',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '达到多少轮对话时进行一次蒸馏',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: 80,
+                            child: TextFormField(
+                              initialValue:
+                                  _config!.distillationRounds.toString(),
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 14),
+                              onChanged: (value) {
+                                final rounds = int.tryParse(value);
+                                if (rounds != null && rounds > 0) {
+                                  setState(() {
+                                    _config = _config!.copyWith(
+                                      distillationRounds: rounds,
+                                    );
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // 蒸馏模型选择
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '蒸馏模型',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '用于进行上下文蒸馏的模型，建议选择较强的模型以获得更好的效果',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: _config!.distillationModel,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            items: _availableModels.map((model) {
+                              return DropdownMenuItem(
+                                value: model.name,
+                                child: Text(
+                                  model.name,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _config = _config!.copyWith(
+                                    distillationModel: value,
+                                  );
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

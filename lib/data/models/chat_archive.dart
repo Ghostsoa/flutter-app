@@ -11,6 +11,7 @@ class ChatArchive {
   final DateTime createdAt;
   final DateTime lastMessageAt;
   final List<ChatMessage> messages;
+  final List<ChatMessage> uiMessages;
 
   ChatArchive({
     required this.id,
@@ -19,7 +20,8 @@ class ChatArchive {
     required this.createdAt,
     required this.lastMessageAt,
     required this.messages,
-  });
+    List<ChatMessage>? uiMessages,
+  }) : uiMessages = uiMessages ?? List.from(messages);
 
   factory ChatArchive.fromJson(Map<String, dynamic> json) =>
       _$ChatArchiveFromJson(json);
@@ -32,6 +34,7 @@ class ChatArchive {
     DateTime? createdAt,
     DateTime? lastMessageAt,
     List<ChatMessage>? messages,
+    List<ChatMessage>? uiMessages,
   }) {
     return ChatArchive(
       id: id ?? this.id,
@@ -40,6 +43,7 @@ class ChatArchive {
       createdAt: createdAt ?? this.createdAt,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       messages: messages ?? this.messages,
+      uiMessages: uiMessages ?? this.uiMessages,
     );
   }
 }

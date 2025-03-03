@@ -15,6 +15,9 @@ ChatArchive _$ChatArchiveFromJson(Map<String, dynamic> json) => ChatArchive(
       messages: (json['messages'] as List<dynamic>)
           .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
           .toList(),
+      uiMessages: (json['uiMessages'] as List<dynamic>?)
+          ?.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
 
 Map<String, dynamic> _$ChatArchiveToJson(ChatArchive instance) =>
@@ -25,4 +28,5 @@ Map<String, dynamic> _$ChatArchiveToJson(ChatArchive instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
       'lastMessageAt': instance.lastMessageAt.toIso8601String(),
       'messages': instance.messages,
+      'uiMessages': instance.uiMessages,
     };

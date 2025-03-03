@@ -23,6 +23,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _userSettingController = TextEditingController();
+  final _greetingController = TextEditingController();
   String? _coverImageUrl;
   File? _selectedImage;
   bool _isLoading = false;
@@ -47,6 +48,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
       _nameController.text = widget.character!.name;
       _descriptionController.text = widget.character!.description;
       _userSettingController.text = widget.character!.userSetting ?? '';
+      _greetingController.text = widget.character!.greeting ?? '';
       _coverImageUrl = widget.character!.coverImageUrl;
       _useMarkdown = widget.character!.useMarkdown;
       _hasStatus = widget.character!.hasStatus;
@@ -68,6 +70,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _userSettingController.dispose();
+    _greetingController.dispose();
     super.dispose();
   }
 
@@ -163,6 +166,8 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
         userSetting: _userSettingController.text.isEmpty
             ? null
             : _userSettingController.text,
+        greeting:
+            _greetingController.text.isEmpty ? null : _greetingController.text,
         useMarkdown: _useMarkdown,
         hasStatus: _hasStatus,
         statusList: _statusList,
@@ -525,12 +530,27 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
             ),
             const SizedBox(height: 16),
 
+            // 开场白输入
+            TextFormField(
+              controller: _greetingController,
+              decoration: const InputDecoration(
+                labelText: '开场白',
+                hintText: '角色的开场白（可选）',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+              minLines: 3,
+              maxLines: null,
+              textAlignVertical: TextAlignVertical.top,
+            ),
+            const SizedBox(height: 16),
+
             // 描述输入
             TextFormField(
               controller: _descriptionController,
               decoration: const InputDecoration(
-                labelText: '角色描述',
-                hintText: '描述一下这个角色的性格、特点等',
+                labelText: '模型设定',
+                hintText: '描述一下模型的设定',
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
@@ -539,7 +559,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
               textAlignVertical: TextAlignVertical.top,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return '请输入角色描述';
+                  return '请输入模型设定';
                 }
                 return null;
               },

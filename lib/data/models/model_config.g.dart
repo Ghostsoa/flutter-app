@@ -13,9 +13,11 @@ ModelConfig _$ModelConfigFromJson(Map<String, dynamic> json) => ModelConfig(
       maxTokens: (json['maxTokens'] as num?)?.toInt() ?? 8196,
       presencePenalty: (json['presencePenalty'] as num?)?.toDouble() ?? 0.0,
       frequencyPenalty: (json['frequencyPenalty'] as num?)?.toDouble() ?? 0.0,
-      maxRounds: (json['maxRounds'] as num?)?.toInt() ?? 200,
       streamResponse: json['streamResponse'] as bool? ?? true,
-      chunkResponse: json['chunkResponse'] as bool? ?? false,
+      enableDistillation: json['enableDistillation'] as bool? ?? false,
+      distillationRounds: (json['distillationRounds'] as num?)?.toInt() ?? 20,
+      distillationModel:
+          json['distillationModel'] as String? ?? 'gemini-1.5-pro',
     );
 
 Map<String, dynamic> _$ModelConfigToJson(ModelConfig instance) =>
@@ -26,7 +28,8 @@ Map<String, dynamic> _$ModelConfigToJson(ModelConfig instance) =>
       'maxTokens': instance.maxTokens,
       'presencePenalty': instance.presencePenalty,
       'frequencyPenalty': instance.frequencyPenalty,
-      'maxRounds': instance.maxRounds,
       'streamResponse': instance.streamResponse,
-      'chunkResponse': instance.chunkResponse,
+      'enableDistillation': instance.enableDistillation,
+      'distillationRounds': instance.distillationRounds,
+      'distillationModel': instance.distillationModel,
     };

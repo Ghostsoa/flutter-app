@@ -28,6 +28,7 @@ Character _$CharacterFromJson(Map<String, dynamic> json) => Character(
       description: json['description'] as String,
       coverImageUrl: json['coverImageUrl'] as String?,
       userSetting: json['userSetting'] as String?,
+      greeting: json['greeting'] as String?,
       useMarkdown: json['useMarkdown'] as bool? ?? false,
       hasStatus: json['hasStatus'] as bool? ?? false,
       statusList: (json['statusList'] as List<dynamic>?)
@@ -47,6 +48,7 @@ Map<String, dynamic> _$CharacterToJson(Character instance) => <String, dynamic>{
       'description': instance.description,
       'coverImageUrl': instance.coverImageUrl,
       'userSetting': instance.userSetting,
+      'greeting': instance.greeting,
       'useMarkdown': instance.useMarkdown,
       'hasStatus': instance.hasStatus,
       'statusList': instance.statusList,
