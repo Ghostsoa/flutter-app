@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../data/models/chat_message.dart';
 import 'dart:io';
@@ -72,14 +71,6 @@ class _ChatBubbleState extends State<ChatBubble> {
       widget.onEdit?.call(newContent);
     }
     setState(() => _isEditing = false);
-  }
-
-  void _handleCopy() {
-    final content = widget.message?.content ?? widget.content ?? '';
-    Clipboard.setData(ClipboardData(text: content));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制到剪贴板')),
-    );
   }
 
   // 将十六进制颜色字符串转换为Color对象

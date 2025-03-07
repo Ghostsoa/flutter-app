@@ -59,9 +59,9 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(20),
         ),
       ),
@@ -73,7 +73,8 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color:
+                    Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -82,32 +83,44 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const Text(
+                Text(
                   '消耗记录',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: Icon(
+                    Icons.close,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(),
                   )
                 : _transactions.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           '暂无消费记录',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.6),
+                          ),
                         ),
                       )
                     : ListView.builder(
@@ -120,17 +133,37 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                           return ListTile(
                             title: Row(
                               children: [
-                                Expanded(child: Text(transaction.description)),
+                                Expanded(
+                                  child: Text(
+                                    transaction.description,
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
+                                  ),
+                                ),
                                 Text(
                                   '小懿币: ${transaction.balanceAfter.toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey[600],
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.6),
                                   ),
                                 ),
                               ],
                             ),
-                            subtitle: Text(formattedTime),
+                            subtitle: Text(
+                              formattedTime,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.6),
+                              ),
+                            ),
                             trailing: Text(
                               '${transaction.amount >= 0 ? "+" : ""}${transaction.amount.toStringAsFixed(2)}',
                               style: TextStyle(

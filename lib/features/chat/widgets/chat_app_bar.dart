@@ -37,9 +37,9 @@ class ChatAppBar extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(8),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(
             top: Radius.circular(20),
           ),
         ),
@@ -50,18 +50,31 @@ class ChatAppBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
                 '设置',
-                style: theme.textTheme.titleMedium,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ),
-            const Divider(height: 1),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.onSurface.withOpacity(0.1),
+            ),
             ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('模型配置'),
+              leading: Icon(
+                Icons.settings_outlined,
+                color: theme.colorScheme.onSurface,
+              ),
+              title: Text(
+                '模型配置',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
               subtitle: Text(
                 modelConfig.model,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               onTap: () {
@@ -69,13 +82,21 @@ class ChatAppBar extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('编辑角色'),
+              leading: Icon(
+                Icons.edit_outlined,
+                color: theme.colorScheme.onSurface,
+              ),
+              title: Text(
+                '编辑角色',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
               subtitle: Text(
                 '编辑 ${character.name} 的设定',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               onTap: () {
@@ -94,13 +115,18 @@ class ChatAppBar extends StatelessWidget {
                   },
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
-                    backgroundColor: Colors.white,
+                    backgroundColor: theme.colorScheme.surface,
                     foregroundColor: theme.colorScheme.primary,
                     side: BorderSide(
                       color: theme.colorScheme.primary,
                     ),
                   ),
-                  child: const Text('取消'),
+                  child: Text(
+                    '取消',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
                 ),
               ),
             ),

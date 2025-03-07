@@ -74,6 +74,14 @@ class _WinnersListState extends State<WinnersList> {
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -164,7 +172,7 @@ class _WinnersListState extends State<WinnersList> {
                   height: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: Colors.grey[200],
+                  color: theme.colorScheme.outlineVariant,
                 ),
                 itemBuilder: (context, index) {
                   final winner = _winners[index];
@@ -224,9 +232,9 @@ class _WinnersListState extends State<WinnersList> {
                         children: [
                           TextSpan(
                             text: winner['prize_name'],
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black87,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                           const TextSpan(text: '  '),
@@ -234,7 +242,8 @@ class _WinnersListState extends State<WinnersList> {
                             text: formattedTime,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[500],
+                              color: theme.colorScheme.onSurface
+                                  .withOpacity(0.6),
                             ),
                           ),
                         ],

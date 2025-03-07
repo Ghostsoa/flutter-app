@@ -200,7 +200,7 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                       if (_config!.model != model.name) ...[
                         const SizedBox(height: 4),
                         Text(
-                          '输入：${model.inputPrice / 10000}/1K tokens  输出：${model.outputPrice / 10000}/1K tokens',
+                          '输入：${model.inputPrice / 100}/1w tokens  输出：${model.outputPrice / 100}/1w tokens',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],

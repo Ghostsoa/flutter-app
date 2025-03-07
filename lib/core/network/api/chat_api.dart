@@ -200,32 +200,6 @@ class ChatApi {
     };
   }
 
-  /// 将文本按标点符号分段
-  List<String> _splitTextByPunctuation(String text) {
-    final segments = <String>[];
-    var currentSegment = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      currentSegment.write(text[i]);
-
-      // 检查是否遇到标点符号
-      if ('。！？!?'.contains(text[i]) ||
-          (i == text.length - 1 && currentSegment.isNotEmpty)) {
-        if (currentSegment.isNotEmpty) {
-          segments.add(currentSegment.toString());
-          currentSegment.clear();
-        }
-      }
-    }
-
-    // 处理剩余的文本
-    if (currentSegment.isNotEmpty) {
-      segments.add(currentSegment.toString());
-    }
-
-    return segments;
-  }
-
   /// 发送非流式请求
   Future<String> sendChatRequest({
     required Character character,

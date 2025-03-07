@@ -145,8 +145,9 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
+        backgroundColor: theme.colorScheme.surface,
         title: const Text('系统公告'),
         actions: [
           IconButton(
@@ -203,6 +204,14 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                       final announcement = _announcements[index];
                       return Card(
                         clipBehavior: Clip.antiAlias,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: theme.colorScheme.outline.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -234,7 +243,8 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                                         .format(announcement.createdAt),
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[500],
+                                      color: theme.colorScheme.onSurface
+                                          .withOpacity(0.6),
                                     ),
                                   ),
                                 ],
@@ -244,9 +254,10 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
                               padding: const EdgeInsets.all(16),
                               child: Text(
                                 announcement.content,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   height: 1.5,
+                                  color: theme.colorScheme.onSurface,
                                 ),
                               ),
                             ),

@@ -6,6 +6,7 @@ import '../../../core/network/api/wallet_api.dart';
 import '../../../core/utils/logger.dart';
 import '../widgets/transaction_history_sheet.dart';
 import '../../../data/models/user.dart';
+import '../../../core/theme/theme_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -190,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    const url = 'https://wyy.xiaoyi.live';
+    const url = 'https://ai.xiaoyi.live';
     try {
       Logger.info('正在打开帮助页面：$url');
       if (await canLaunchUrl(Uri.parse(url))) {
@@ -251,6 +252,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -272,7 +281,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           user?.email ?? '',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
+                            color:
+                                theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                       ],
@@ -292,7 +302,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           'ID',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
+                            color:
+                                theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -337,6 +348,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -401,6 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   List<Widget> _buildActionItems(ThemeData theme) {
+    final themeProvider = ThemeProvider();
     return [
       _buildActionTile(
         theme,
@@ -451,6 +471,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: '关于',
         onTap: _showAboutDialog,
       ),
+      const Divider(indent: 72),
+      _buildActionTile(
+        theme,
+        icon: Icons.dark_mode,
+        title: '深色模式',
+        trailing: Switch(
+          value: themeProvider.isDarkMode,
+          onChanged: (bool value) async {
+            await themeProvider.toggleTheme();
+          },
+        ),
+      ),
     ];
   }
 
@@ -460,6 +492,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     String? subtitle,
     VoidCallback? onTap,
+    Widget? trailing,
   }) {
     return ListTile(
       leading: Container(
@@ -477,7 +510,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       title: Text(title),
       subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: const Icon(Icons.chevron_right),
+      trailing: trailing ?? const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }
