@@ -174,8 +174,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('帮助与反馈'),
-        content: const Text('即将跳转到官网页面，是否继续？'),
+        title: const Text('官方讨论与反馈'),
+        content: const Text('即将跳转到官方QQ群，是否继续？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -191,23 +191,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    const url = 'https://ai.xiaoyi.live';
+    const url =
+        'http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=305f7JRO_ndFjz6Q-ZmLWj3AyeaROspn&authKey=E8yGMbhHyYkC';
     try {
-      Logger.info('正在打开帮助页面：$url');
+      Logger.info('正在跳转官方QQ群：$url');
       if (await canLaunchUrl(Uri.parse(url))) {
         await launchUrl(Uri.parse(url));
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('无法打开帮助页面')),
+            const SnackBar(content: Text('跳转失败')),
           );
         }
       }
     } catch (e, stackTrace) {
-      Logger.error('打开帮助页面失败', error: e, stackTrace: stackTrace);
+      Logger.error('跳转失败', error: e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('打开帮助页面失败：$e')),
+          SnackBar(content: Text('跳转失败：$e')),
         );
       }
     }
@@ -281,8 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           user?.email ?? '',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color:
-                                theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                       ],
@@ -302,8 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           'ID',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color:
-                                theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -461,7 +460,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildActionTile(
         theme,
         icon: Icons.help_outline,
-        title: '帮助与反馈',
+        title: '官方讨论与反馈',
         onTap: _showHelpDialog,
       ),
       const Divider(indent: 72),
