@@ -7,6 +7,7 @@ import '../../../core/utils/logger.dart';
 import '../widgets/transaction_history_sheet.dart';
 import '../../../data/models/user.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../settings/screens/voice_setting_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -466,9 +467,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       const Divider(indent: 72),
       _buildActionTile(
         theme,
-        icon: Icons.info_outline,
-        title: '关于',
-        onTap: _showAboutDialog,
+        icon: Icons.record_voice_over_outlined,
+        title: '语音设置',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const VoiceSettingScreen(),
+            ),
+          );
+        },
       ),
       const Divider(indent: 72),
       _buildActionTile(
@@ -481,6 +488,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             await themeProvider.toggleTheme();
           },
         ),
+      ),
+      const Divider(indent: 72),
+      _buildActionTile(
+        theme,
+        icon: Icons.info_outline,
+        title: '关于',
+        onTap: _showAboutDialog,
       ),
     ];
   }

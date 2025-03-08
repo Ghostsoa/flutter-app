@@ -16,6 +16,7 @@ import '../widgets/chat_background.dart';
 import '../widgets/chat_greeting.dart';
 import '../services/chat_archive_manager.dart';
 import '../services/chat_message_handler.dart';
+import '../services/chat_audio_player_manager.dart';
 
 class ChatScreen extends StatefulWidget {
   final Character character;
@@ -42,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ModelConfigRepository _modelConfigRepository;
   late final ChatArchiveManager _archiveManager;
   late final ChatMessageHandler _messageHandler;
+  late final ChatAudioPlayerManager _audioPlayerManager;
   List<ChatArchive> _archives = [];
   ChatArchive? _currentArchive;
   String _currentResponse = '';
@@ -69,6 +71,9 @@ class _ChatScreenState extends State<ChatScreen> {
       character: _character,
       modelConfig: _modelConfig,
     );
+
+    _audioPlayerManager = ChatAudioPlayerManager();
+    await _audioPlayerManager.init();
 
     try {
       final latestCharacter =
@@ -317,6 +322,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     _messageController.dispose();
     _scrollController.dispose();
+    _audioPlayerManager.dispose();
     super.dispose();
   }
 
@@ -765,6 +771,7 @@ class _ChatScreenState extends State<ChatScreen> {
               streamingText: _currentResponse,
               messageFilter: (message) => !message.content.contains('[历史记忆]'),
               onMessageEdit: _handleMessageEdit,
+              audioPlayer: _audioPlayerManager,
               greetingBuilder:
                   _character.greeting != null && _character.greeting!.isNotEmpty
                       ? (context) => ChatGreeting(

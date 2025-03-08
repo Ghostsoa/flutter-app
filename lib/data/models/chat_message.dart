@@ -10,6 +10,7 @@ class ChatMessage {
   final DateTime timestamp;
   final String? statusInfo;
   final bool isSystemMessage; // 是否是系统消息
+  final String? audioId; // 音频ID，用于缓存
 
   // 用于提取状态信息的正则表达式
   static final regex = RegExp(r'\[(.*?)\]');
@@ -21,6 +22,7 @@ class ChatMessage {
     required this.timestamp,
     this.statusInfo,
     this.isSystemMessage = false,
+    this.audioId,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) =>
@@ -34,6 +36,7 @@ class ChatMessage {
     DateTime? timestamp,
     String? statusInfo,
     bool? isSystemMessage,
+    String? audioId,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -42,6 +45,7 @@ class ChatMessage {
       timestamp: timestamp ?? this.timestamp,
       statusInfo: statusInfo ?? this.statusInfo,
       isSystemMessage: isSystemMessage ?? this.isSystemMessage,
+      audioId: audioId ?? this.audioId,
     );
   }
 

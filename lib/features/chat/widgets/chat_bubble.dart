@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../data/models/chat_message.dart';
 import 'dart:io';
+import '../services/chat_audio_player_manager.dart';
 
 class ChatBubble extends StatefulWidget {
   final ChatMessage? message;
@@ -11,6 +12,7 @@ class ChatBubble extends StatefulWidget {
   final String textColor;
   final String? content;
   final Function(String)? onEdit;
+  final ChatAudioPlayerManager? audioPlayer;
 
   const ChatBubble({
     super.key,
@@ -20,6 +22,7 @@ class ChatBubble extends StatefulWidget {
     required this.bubbleColor,
     required this.textColor,
     this.onEdit,
+    this.audioPlayer,
   }) : content = null;
 
   /// 用于显示流式消息的构造函数
@@ -30,6 +33,7 @@ class ChatBubble extends StatefulWidget {
     this.useMarkdown = false,
     required this.bubbleColor,
     required this.textColor,
+    this.audioPlayer,
   })  : message = null,
         onEdit = null;
 
@@ -157,6 +161,8 @@ class _ChatBubbleState extends State<ChatBubble> {
     final isUser = widget.message?.isUser ?? false;
     final bubbleColor = _hexToColor(widget.bubbleColor);
     final textColor = _hexToColor(widget.textColor);
+    final hasAudioPlayer = widget.audioPlayer != null;
+    final hasAudioId = widget.message?.audioId != null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -180,86 +186,176 @@ class _ChatBubbleState extends State<ChatBubble> {
                 const SizedBox(width: 8),
               ],
               Flexible(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: bubbleColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: _isEditing
-                          ? TextField(
-                              controller: _editingController,
-                              focusNode: _editFocusNode,
-                              maxLines: null,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 16,
-                              ),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                                suffixIcon: IconButton(
-                                  icon: const Icon(Icons.check),
-                                  onPressed: _handleSave,
-                                  color: textColor,
-                                ),
-                              ),
-                            )
-                          : widget.useMarkdown
-                              ? MarkdownBody(
-                                  data: content,
-                                  styleSheet: MarkdownStyleSheet(
-                                    p: TextStyle(
-                                      color: textColor,
-                                      fontSize: 16,
-                                    ),
-                                    code: TextStyle(
-                                      color: textColor.withOpacity(0.8),
-                                      backgroundColor:
-                                          Colors.black.withOpacity(0.3),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  selectable: true,
-                                )
-                              : Text(
-                                  content,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _isEditing
+                              ? TextField(
+                                  controller: _editingController,
+                                  focusNode: _editFocusNode,
+                                  maxLines: null,
                                   style: TextStyle(
                                     color: textColor,
                                     fontSize: 16,
                                   ),
-                                ),
-                    ),
-                    if (!_isEditing && widget.message != null && !isUser)
-                      Positioned(
-                        right: 0,
-                        bottom: -24,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.edit_outlined,
-                                size: 16,
-                                color: Colors.grey[400],
-                              ),
-                              onPressed: _handleEdit,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 20,
-                                minHeight: 24,
-                              ),
-                              splashRadius: 16,
-                              tooltip: '编辑',
-                            ),
-                          ],
-                        ),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    suffixIcon: IconButton(
+                                      icon: const Icon(Icons.check),
+                                      onPressed: _handleSave,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                )
+                              : widget.useMarkdown
+                                  ? MarkdownBody(
+                                      data: content,
+                                      styleSheet: MarkdownStyleSheet(
+                                        p: TextStyle(
+                                          color: textColor,
+                                          fontSize: 16,
+                                        ),
+                                        code: TextStyle(
+                                          color: textColor.withOpacity(0.8),
+                                          backgroundColor:
+                                              Colors.black.withOpacity(0.3),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      selectable: true,
+                                    )
+                                  : Text(
+                                      content,
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                          const SizedBox(height: 20), // 为按钮预留空间
+                        ],
                       ),
-                  ],
+                      if (!isUser &&
+                          !_isEditing &&
+                          (hasAudioPlayer || widget.message != null))
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (hasAudioPlayer)
+                                ValueListenableBuilder<ChatPlaybackState>(
+                                  valueListenable:
+                                      widget.audioPlayer!.playbackState,
+                                  builder: (context, playbackState, child) {
+                                    final bool isCurrentText =
+                                        widget.audioPlayer!.currentText ==
+                                            content;
+                                    final bool isPlaying = isCurrentText &&
+                                        playbackState ==
+                                            ChatPlaybackState.playing;
+                                    final bool isLoading = isCurrentText &&
+                                        playbackState ==
+                                            ChatPlaybackState.loading;
+
+                                    return SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: isLoading
+                                              ? null
+                                              : () {
+                                                  if (hasAudioId) {
+                                                    widget.audioPlayer!
+                                                        .playTextWithAudioId(
+                                                      content,
+                                                      widget.message!.audioId!,
+                                                    );
+                                                  } else {
+                                                    widget.audioPlayer!
+                                                        .playText(content);
+                                                  }
+                                                },
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Icon(
+                                                isLoading
+                                                    ? Icons.hourglass_empty
+                                                    : isPlaying
+                                                        ? Icons
+                                                            .stop_circle_outlined
+                                                        : Icons
+                                                            .play_circle_outline,
+                                                size: 18,
+                                                color: isPlaying || isLoading
+                                                    ? textColor
+                                                    : textColor
+                                                        .withOpacity(0.6),
+                                              ),
+                                              if (hasAudioId &&
+                                                  !isPlaying &&
+                                                  !isLoading)
+                                                Positioned(
+                                                  right: 0,
+                                                  bottom: 0,
+                                                  child: Container(
+                                                    width: 5,
+                                                    height: 5,
+                                                    decoration: BoxDecoration(
+                                                      color: textColor,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              const SizedBox(width: 4),
+                              if (widget.message != null)
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: _handleEdit,
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Icon(
+                                        Icons.edit_outlined,
+                                        size: 18,
+                                        color: textColor.withOpacity(0.6),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],

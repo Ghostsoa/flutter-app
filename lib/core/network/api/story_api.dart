@@ -42,51 +42,21 @@ class StoryApi {
           String content = json['choices'][0]['message']['content'] as String;
           debugPrint('原始响应内容: $content');
 
-          // 处理内容中的 JSON
-          try {
-            if (content.contains('```json')) {
-              // 如果内容被 ```json 包裹，提取 JSON 字符串
-              final start = content.indexOf('```json') + 7;
-              final end = content.lastIndexOf('```');
-              if (end > start) {
-                content = content.substring(start, end).trim();
-                debugPrint('提取的 JSON 内容: $content');
-              }
+          // 如果内容被 ```json 包裹，提取 JSON 字符串
+          if (content.contains('```json')) {
+            final start = content.indexOf('```json') + 7;
+            final end = content.lastIndexOf('```');
+            if (end > start) {
+              content = content.substring(start, end).trim();
             }
-
-            // 尝试修复和解析 JSON
-            try {
-              // 先尝试直接解析
-              final jsonData = jsonDecode(content);
-              if (_isValidJson(jsonData)) {
-                return jsonEncode(jsonData);
-              }
-            } catch (e) {
-              debugPrint('直接解析失败，尝试修复: $e');
-            }
-
-            // 如果直接解析失败，尝试修复
-            if (content.endsWith('}}}')) {
-              // 检查是否有未闭合的对象
-              final openBraces = content.split('{').length - 1;
-              final closeBraces = content.split('}').length - 1;
-              if (openBraces > closeBraces) {
-                content =
-                    content + List.filled(openBraces - closeBraces, '}').join();
-              }
-            }
-
-            // 再次尝试解析
-            final jsonData = jsonDecode(content);
-            if (!_isValidJson(jsonData)) {
-              throw Exception('JSON 结构不完整');
-            }
-            debugPrint('成功修复并解析 JSON');
-            return jsonEncode(jsonData);
-          } catch (e) {
-            debugPrint('JSON 解析失败: $e');
-            rethrow; // 让调用方进行重试
           }
+
+          // 直接解析 JSON
+          final jsonData = jsonDecode(content);
+          if (!_isValidJson(jsonData)) {
+            throw Exception('JSON 结构不完整');
+          }
+          return jsonEncode(jsonData);
         } else {
           debugPrint('无效的响应格式: ${json.toString()}');
           throw Exception('无效的响应格式');

@@ -3,6 +3,7 @@ import '../../../data/models/chat_archive.dart';
 import '../../../data/models/chat_message.dart';
 import 'chat_bubble.dart';
 import 'chat_system_hint.dart';
+import '../services/chat_audio_player_manager.dart';
 
 class ChatMessageList extends StatefulWidget {
   final ScrollController controller;
@@ -17,6 +18,7 @@ class ChatMessageList extends StatefulWidget {
   final bool Function(ChatMessage)? messageFilter;
   final Function(ChatMessage, String)? onMessageEdit;
   final WidgetBuilder? greetingBuilder;
+  final ChatAudioPlayerManager? audioPlayer;
 
   const ChatMessageList({
     super.key,
@@ -32,6 +34,7 @@ class ChatMessageList extends StatefulWidget {
     this.messageFilter,
     this.onMessageEdit,
     this.greetingBuilder,
+    this.audioPlayer,
   });
 
   @override
@@ -94,6 +97,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               useMarkdown: widget.useMarkdown,
               bubbleColor: widget.aiBubbleColor,
               textColor: widget.aiTextColor,
+              audioPlayer: widget.audioPlayer,
             ),
           ...messages.reversed.map((message) {
             if (message.isSystemMessage) {
@@ -113,6 +117,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               textColor:
                   message.isUser ? widget.userTextColor : widget.aiTextColor,
               onEdit: (newContent) => _handleMessageEdit(message, newContent),
+              audioPlayer: widget.audioPlayer,
             );
           }),
         ],

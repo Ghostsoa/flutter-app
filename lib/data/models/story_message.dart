@@ -57,6 +57,7 @@ class StoryMessageUI {
   final StoryMessageUIType type;
   final DateTime timestamp;
   final List<Map<String, String>>? actions; // 用于modelActions类型
+  final String? audioId; // 音频ID，用于缓存
 
   StoryMessageUI({
     required this.id,
@@ -64,6 +65,7 @@ class StoryMessageUI {
     required this.type,
     required this.timestamp,
     this.actions,
+    this.audioId,
   });
 
   factory StoryMessageUI.fromStoryMessage(StoryMessage message) {
@@ -87,6 +89,7 @@ class StoryMessageUI {
             content: json['content'] as String,
             type: StoryMessageUIType.modelContent,
             timestamp: message.createdAt,
+            audioId: json['audio_id'] as String?, // 添加audioId
           );
 
           // 如果有system_prompt，创建prompt消息

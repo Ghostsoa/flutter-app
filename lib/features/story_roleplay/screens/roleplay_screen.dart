@@ -14,6 +14,7 @@ import '../widgets/chat_input_bar.dart';
 import '../services/message_manager.dart';
 import '../widgets/status_card.dart';
 import '../widgets/status_panel/status_panel.dart';
+import '../services/audio_player_manager.dart';
 import 'package:uuid/uuid.dart';
 
 class RoleplayScreen extends StatefulWidget {
@@ -38,11 +39,13 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
   StoryApi? _api;
   late final StoryStateStorage _stateStorage;
   StoryState? _currentState;
+  late final AudioPlayerManager _audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _setFullScreen();
+    _audioPlayer = AudioPlayerManager();
     _init();
   }
 
@@ -56,6 +59,7 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
     });
 
     try {
+      await _audioPlayer.init();
       final api = StoryApi();
       await api.init();
       final messageStorage = await StoryMessageStorage.init();
@@ -262,6 +266,7 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -382,6 +387,7 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
                         message: message,
                         accentColor: const Color(0xFF64B5F6),
                         onActionSelected: _handleAction,
+                        audioPlayer: _audioPlayer,
                       );
                     },
                   ),

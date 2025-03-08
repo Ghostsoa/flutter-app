@@ -22,7 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   late StoryStorage _storage;
   List<Story> _stories = [];
   bool _isLoading = true;
-  PageController _pageController = PageController(
+  final PageController _pageController = PageController(
     viewportFraction: 0.85,
     initialPage: 0,
   );
@@ -196,14 +196,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         extendBodyBehindAppBar: true,
         extendBody: true,
         body: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFF1A1F25),
-                const Color(0xFF141619),
-                const Color(0xFF0D0E10),
+                Color(0xFF1A1F25),
+                Color(0xFF141619),
+                Color(0xFF0D0E10),
               ],
             ),
           ),

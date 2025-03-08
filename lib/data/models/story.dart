@@ -15,7 +15,7 @@ class Story {
   final String? backgroundImagePath;
   final String opening;
   final String settings;
-  @JsonKey(defaultValue: 50)
+  @JsonKey(defaultValue: 20)
   final int distillationRounds;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -29,7 +29,7 @@ class Story {
     this.backgroundImagePath,
     required this.opening,
     required this.settings,
-    required this.distillationRounds,
+    this.distillationRounds = 20,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -92,7 +92,7 @@ class Story {
     // 确保 distillationRounds 有默认值
     final Map<String, dynamic> storyJson = Map<String, dynamic>.from(json);
     if (!storyJson.containsKey('distillationRounds')) {
-      storyJson['distillationRounds'] = 50;
+      storyJson['distillationRounds'] = 20;
     }
 
     return Story(

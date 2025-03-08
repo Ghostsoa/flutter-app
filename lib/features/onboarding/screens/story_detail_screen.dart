@@ -122,7 +122,7 @@ class _StoryDetailScreenState extends State<StoryDetailScreen> {
     required String content,
     Color? accentColor,
   }) {
-    IconData _getIconForTitle(String title) {
+    IconData getIconForTitle(String title) {
       switch (title) {
         case '开场白':
           return Icons.chat_bubble_outline_rounded;
@@ -158,7 +158,7 @@ class _StoryDetailScreenState extends State<StoryDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    _getIconForTitle(title),
+                    getIconForTitle(title),
                     color: accentColor ?? Colors.white,
                     size: 18,
                   ),
@@ -519,16 +519,16 @@ class _StoryDetailScreenState extends State<StoryDetailScreen> {
                     label: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 24, vertical: 16),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.refresh_rounded,
                             color: Colors.redAccent,
                             size: 20,
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
+                          SizedBox(width: 8),
+                          Text(
                             '重新开始',
                             style: TextStyle(
                               fontSize: 16,
@@ -573,12 +573,12 @@ class _StoryDetailScreenState extends State<StoryDetailScreen> {
                 label: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.play_arrow_rounded, size: 24),
-                      const SizedBox(width: 8),
-                      const Text(
+                      Icon(Icons.play_arrow_rounded, size: 24),
+                      SizedBox(width: 8),
+                      Text(
                         '开始对话',
                         style: TextStyle(
                           fontSize: 18,

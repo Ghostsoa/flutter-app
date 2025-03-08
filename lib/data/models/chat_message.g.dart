@@ -13,6 +13,7 @@ ChatMessage _$ChatMessageFromJson(Map<String, dynamic> json) => ChatMessage(
       timestamp: DateTime.parse(json['timestamp'] as String),
       statusInfo: json['statusInfo'] as String?,
       isSystemMessage: json['isSystemMessage'] as bool? ?? false,
+      audioId: json['audioId'] as String?,
     );
 
 Map<String, dynamic> _$ChatMessageToJson(ChatMessage instance) =>
@@ -23,4 +24,5 @@ Map<String, dynamic> _$ChatMessageToJson(ChatMessage instance) =>
       'timestamp': instance.timestamp.toIso8601String(),
       'statusInfo': instance.statusInfo,
       'isSystemMessage': instance.isSystemMessage,
+      'audioId': instance.audioId,
     };

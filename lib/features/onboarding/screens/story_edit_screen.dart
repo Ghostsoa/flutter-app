@@ -97,7 +97,7 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
         _backgroundImageFile = File(widget.story!.backgroundImagePath!);
       }
     } else {
-      _distillationRoundsController.text = '50'; // 默认值
+      _distillationRoundsController.text = '20'; // 默认值改为20
     }
   }
 
@@ -592,14 +592,14 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
         children: [
           // 主背景
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF1A1F25),
-                  const Color(0xFF141619),
-                  const Color(0xFF0D0E10),
+                  Color(0xFF1A1F25),
+                  Color(0xFF141619),
+                  Color(0xFF0D0E10),
                 ],
               ),
             ),
@@ -739,7 +739,7 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '针对故事对话轮数进行蒸馏，大幅度降低token，轻度影响记忆',
+                        '针对故事对话轮数进行蒸馏，大幅度降低token，轻度影响记忆(如果不想使用，请输入 999999)',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.white.withOpacity(0.5),
@@ -753,7 +753,7 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           decoration: InputDecoration(
-                            hintText: '10-100',
+                            hintText: '10-999999',
                             filled: true,
                             fillColor: Colors.white.withOpacity(0.1),
                             border: OutlineInputBorder(
@@ -795,8 +795,8 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
                             if (rounds == null) {
                               return '请输入数字';
                             }
-                            if (rounds < 10 || rounds > 100) {
-                              return '范围:10-100';
+                            if (rounds < 10 || rounds > 999999) {
+                              return '范围:10-999999';
                             }
                             return null;
                           },
