@@ -39,6 +39,8 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
   String _userTextColor = '#FFFFFF';
   String _aiTextColor = '#FFFFFF';
 
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -61,17 +63,18 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     }
   }
 
-  Future<void> _initRepository() async {
-    _repository = await CharacterRepository.create();
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
     _userSettingController.dispose();
     _greetingController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initRepository() async {
+    _repository = await CharacterRepository.create();
   }
 
   Future<void> _pickImage() async {
@@ -243,13 +246,14 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('取消'),
             ),
-            TextButton(
+            FilledButton(
               onPressed: () {
                 if (name.isNotEmpty) {
                   setState(() {
                     _statusList.add(CharacterStatus(
                       name: name,
                       type: type,
+                      value: type == 'number' ? '0' : '',
                     ));
                   });
                   Navigator.of(context).pop();
@@ -263,379 +267,354 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     );
   }
 
-  Widget _buildStatusList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildImageSection() {
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceVariant,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: _selectedImage != null || _coverImageUrl != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image(
+                    image: _selectedImage != null
+                        ? FileImage(_selectedImage!) as ImageProvider
+                        : _coverImageUrl!.startsWith('/')
+                            ? FileImage(File(_coverImageUrl!))
+                            : NetworkImage(_coverImageUrl!) as ImageProvider,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : Icon(
+                  Icons.person_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton.small(
+            onPressed: _pickImage,
+            child: const Icon(Icons.camera_alt),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    int maxLines = 1,
+    bool required = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextFormField(
+        controller: controller,
+        minLines: maxLines,
+        maxLines: null,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          alignLabelWithHint: maxLines > 1,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        validator: required
+            ? (value) {
+                if (value == null || value.isEmpty) {
+                  return '$label不能为空';
+                }
+                return null;
+              }
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildColorSection() {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '状态列表',
+              '聊天气泡设置',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            TextButton.icon(
-              onPressed: _addStatus,
-              icon: const Icon(Icons.add),
-              label: const Text('添加状态'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('用户气泡颜色'),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _showColorPicker(
+                          '选择用户气泡颜色',
+                          _userBubbleColor,
+                          (color) => setState(() => _userBubbleColor = color),
+                        ),
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _hexToColor(_userBubbleColor),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('AI气泡颜色'),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _showColorPicker(
+                          '选择AI气泡颜色',
+                          _aiBubbleColor,
+                          (color) => setState(() => _aiBubbleColor = color),
+                        ),
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _hexToColor(_aiBubbleColor),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('用户文字颜色'),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _showColorPicker(
+                          '选择用户文字颜色',
+                          _userTextColor,
+                          (color) => setState(() => _userTextColor = color),
+                        ),
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _hexToColor(_userTextColor),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('AI文字颜色'),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _showColorPicker(
+                          '选择AI文字颜色',
+                          _aiTextColor,
+                          (color) => setState(() => _aiTextColor = color),
+                        ),
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _hexToColor(_aiTextColor),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('背景透明度'),
+                Slider(
+                  value: _backgroundOpacity,
+                  onChanged: (value) =>
+                      setState(() => _backgroundOpacity = value),
+                  min: 0,
+                  max: 1,
+                  divisions: 100,
+                  label: '${(_backgroundOpacity * 100).round()}%',
+                ),
+              ],
             ),
           ],
         ),
-        if (_statusList.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              '暂无状态',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _statusList.length,
-            itemBuilder: (context, index) {
-              final status = _statusList[index];
-              return Card(
-                child: ListTile(
-                  title: Text(status.name),
-                  subtitle: Text(status.type == 'text' ? '文本类型' : '数值类型'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () {
-                      setState(() {
-                        _statusList.removeAt(index);
-                      });
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-      ],
+      ),
     );
   }
 
-  Widget _buildChatStyleSettings() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '聊天界面设置',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // 背景透明度设置
-        Row(
+  Widget _buildStatusSection() {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('背景透明度'),
-            Expanded(
-              child: Slider(
-                value: _backgroundOpacity,
-                onChanged: (value) {
-                  setState(() => _backgroundOpacity = value);
-                },
-                min: 0,
-                max: 1,
-                divisions: 10,
-                label: '${(_backgroundOpacity * 100).round()}%',
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '状态设置',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Switch(
+                  value: _hasStatus,
+                  onChanged: (value) => setState(() => _hasStatus = value),
+                ),
+              ],
             ),
+            if (_hasStatus) ...[
+              const SizedBox(height: 16),
+              ..._statusList.map((status) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(status.name),
+                      subtitle: Text(status.type == 'text' ? '文本' : '数值'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () =>
+                            setState(() => _statusList.remove(status)),
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 8),
+              Center(
+                child: FilledButton.tonalIcon(
+                  onPressed: _addStatus,
+                  icon: const Icon(Icons.add),
+                  label: const Text('添加状态'),
+                ),
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 16),
-
-        // 用户气泡颜色
-        ListTile(
-          title: const Text('用户气泡颜色'),
-          trailing: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: _hexToColor(_userBubbleColor),
-              shape: BoxShape.circle,
-            ),
-          ),
-          onTap: () => _showColorPicker(
-            '选择用户气泡颜色',
-            _userBubbleColor,
-            (color) => setState(() => _userBubbleColor = color),
-          ),
-        ),
-
-        // AI气泡颜色
-        ListTile(
-          title: const Text('AI气泡颜色'),
-          trailing: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: _hexToColor(_aiBubbleColor),
-              shape: BoxShape.circle,
-            ),
-          ),
-          onTap: () => _showColorPicker(
-            '选择AI气泡颜色',
-            _aiBubbleColor,
-            (color) => setState(() => _aiBubbleColor = color),
-          ),
-        ),
-
-        // 用户文本颜色
-        ListTile(
-          title: const Text('用户文本颜色'),
-          trailing: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: _hexToColor(_userTextColor),
-              shape: BoxShape.circle,
-            ),
-          ),
-          onTap: () => _showColorPicker(
-            '选择用户文本颜色',
-            _userTextColor,
-            (color) => setState(() => _userTextColor = color),
-          ),
-        ),
-
-        // AI文本颜色
-        ListTile(
-          title: const Text('AI文本颜色'),
-          trailing: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: _hexToColor(_aiTextColor),
-              shape: BoxShape.circle,
-            ),
-          ),
-          onTap: () => _showColorPicker(
-            '选择AI文本颜色',
-            _aiTextColor,
-            (color) => setState(() => _aiTextColor = color),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.character != null ? '编辑角色' : '创建角色'),
+        title: Text(widget.character == null ? '新建角色' : '编辑角色'),
         actions: [
-          TextButton(
+          TextButton.icon(
             onPressed: _isLoading ? null : _handleSave,
-            child: _isLoading
+            icon: _isLoading
                 ? const SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: 20,
+                    height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                     ),
                   )
-                : const Text('保存'),
+                : const Icon(Icons.save_outlined),
+            label: const Text('保存'),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(16),
           children: [
-            // 封面选择
-            AspectRatio(
-              aspectRatio: 0.75,
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: _pickImage,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (_selectedImage != null)
-                        Image.file(
-                          _selectedImage!,
-                          fit: BoxFit.cover,
-                        )
-                      else if (_coverImageUrl != null)
-                        _coverImageUrl!.startsWith('/')
-                            ? Image.file(
-                                File(_coverImageUrl!),
-                                fit: BoxFit.cover,
-                              )
-                            : Image.network(
-                                _coverImageUrl!,
-                                fit: BoxFit.cover,
-                              )
-                      else
-                        Container(
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.1),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 64,
-                                color: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                '选择封面',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            _buildImageSection(),
             const SizedBox(height: 16),
-
-            // 名字输入
-            TextFormField(
+            _buildTextField(
+              label: '名称',
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: '角色名字',
-                hintText: '给你的角色起个名字',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '请输入角色名字';
-                }
-                return null;
-              },
+              hint: '角色的名字',
+              required: true,
             ),
-            const SizedBox(height: 16),
-
-            // 开场白输入
-            TextFormField(
-              controller: _greetingController,
-              decoration: const InputDecoration(
-                labelText: '开场白',
-                hintText: '角色的开场白（可选）',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              minLines: 3,
-              maxLines: null,
-              textAlignVertical: TextAlignVertical.top,
-            ),
-            const SizedBox(height: 16),
-
-            // 描述输入
-            TextFormField(
+            _buildTextField(
+              label: '描述',
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: '模型设定',
-                hintText: '描述一下模型的设定',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              minLines: 5,
-              maxLines: null,
-              textAlignVertical: TextAlignVertical.top,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '请输入模型设定';
-                }
-                return null;
-              },
+              hint: '角色的个性、背景故事等',
+              maxLines: 3,
+              required: true,
             ),
-            const SizedBox(height: 16),
-
-            // 用户设定输入
-            TextFormField(
+            _buildTextField(
+              label: '用户设定',
               controller: _userSettingController,
-              decoration: const InputDecoration(
-                labelText: '用户设定',
-                hintText: '添加额外的用户设定（可选）',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              minLines: 3,
-              maxLines: null,
-              textAlignVertical: TextAlignVertical.top,
+              hint: '可选：设定用户在对话中扮演的角色',
+              maxLines: 2,
             ),
-            const SizedBox(height: 16),
-
-            // Markdown格式化开关
+            _buildTextField(
+              label: '开场白',
+              controller: _greetingController,
+              hint: '可选：角色的开场白',
+              maxLines: 2,
+            ),
             SwitchListTile(
-              title: const Text('使用Markdown格式化'),
-              subtitle: Text(
-                _hasStatus
-                    ? '启用状态功能时无法使用Markdown格式化'
-                    : '开启后将使用Markdown格式渲染描述文本',
-                style: TextStyle(
-                  color: _hasStatus ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
+              title: const Text('启用Markdown'),
+              subtitle: const Text('允许在对话中使用Markdown格式'),
               value: _useMarkdown,
-              onChanged: _hasStatus
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _useMarkdown = value;
-                      });
-                    },
+              onChanged: (value) => setState(() => _useMarkdown = value),
             ),
-            const SizedBox(height: 16),
-
-            // 状态功能开关
-            SwitchListTile(
-              title: const Text('启用状态功能'),
-              subtitle: Text(
-                _useMarkdown ? '使用Markdown格式化时无法启用状态功能' : '开启后可以为角色添加自定义状态',
-                style: TextStyle(
-                  color: _useMarkdown ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-              value: _hasStatus,
-              onChanged: _useMarkdown
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _hasStatus = value;
-                        if (!value) {
-                          _statusList.clear();
-                        }
-                      });
-                    },
-            ),
-
-            if (_hasStatus) ...[
-              const SizedBox(height: 16),
-              _buildStatusList(),
-            ],
-
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-
-            // 添加聊天界面设置
-            _buildChatStyleSettings(),
+            _buildColorSection(),
+            _buildStatusSection(),
+            const SizedBox(height: 32),
           ],
         ),
       ),

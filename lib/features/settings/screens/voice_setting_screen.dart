@@ -264,6 +264,8 @@ class _VoiceSettingScreenState extends State<VoiceSettingScreen> {
       );
     }
 
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('语音设置'),
@@ -271,455 +273,818 @@ class _VoiceSettingScreenState extends State<VoiceSettingScreen> {
         actions: [
           TextButton.icon(
             onPressed: _resetSettings,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 20),
             label: const Text('重置'),
             style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: theme.colorScheme.error,
             ),
           ),
           if (_hasChanges)
             TextButton.icon(
               onPressed: _saveSetting,
-              icon: const Icon(Icons.save_outlined),
+              icon: const Icon(Icons.save_outlined, size: 20),
               label: const Text('保存'),
               style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: theme.colorScheme.primary,
               ),
             ),
         ],
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
           // 价格提示
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.green.withOpacity(0.3),
-                width: 1,
-              ),
+              color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Text(
-              '文本转语音350小懿币/万字符',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.green[800],
-              ),
-            ),
-          ),
-
-          // 音色选择
-          ListTile(
-            title: const Text('音色'),
-            subtitle: Text(_getVoiceName(_editingSetting!.voiceId)),
-            trailing: _buildPlayButton(_editingSetting!.voiceId),
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (context) => DraggableScrollableSheet(
-                  initialChildSize: 0.7,
-                  minChildSize: 0.5,
-                  maxChildSize: 0.95,
-                  expand: false,
-                  builder: (context, scrollController) => Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: const Text(
-                          '选择音色',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: ListView.builder(
-                          controller: scrollController,
-                          itemCount: _voices.length,
-                          itemBuilder: (context, index) {
-                            final voice = _voices[index];
-                            return ListTile(
-                              title: Text(voice.name),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_editingSetting!.voiceId == voice.id)
-                                    Container(
-                                      margin: const EdgeInsets.only(right: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .primaryColor
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '当前',
-                                        style: TextStyle(
-                                          color: Theme.of(context).primaryColor,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  _buildPlayButton(voice.id),
-                                ],
-                              ),
-                              onTap: () {
-                                if (_playingVoiceId != null) {
-                                  _audioPlayer.stop();
-                                  setState(() => _playingVoiceId = null);
-                                }
-                                Navigator.pop(context);
-                                _updateEditingSetting(
-                                  _editingSetting!.copyWith(voiceId: voice.id),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-
-          // 语速调节
-          ListTile(
-            title: Row(
+            child: Row(
               children: [
-                const Text('语速'),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.monetization_on_outlined,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
                 Text(
-                  '(${_editingSetting!.speed.toStringAsFixed(1)})',
+                  '文本转语音350小懿币/万字符',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            subtitle: Slider(
-              value: _editingSetting!.speed,
-              min: 0.5,
-              max: 2.0,
-              divisions: 15,
-              label: _editingSetting!.speed.toStringAsFixed(1),
-              onChanged: (value) {
-                setState(() {
-                  _editingSetting = _editingSetting!.copyWith(speed: value);
-                  _hasChanges = true;
-                });
-              },
-            ),
-          ),
-
-          // 音量调节
-          ListTile(
-            title: Row(
-              children: [
-                const Text('音量'),
-                const SizedBox(width: 8),
-                Text(
-                  '(${_editingSetting!.vol.toStringAsFixed(1)})',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            subtitle: Slider(
-              value: _editingSetting!.vol,
-              min: 0.1,
-              max: 10.0,
-              divisions: 99,
-              label: _editingSetting!.vol.toStringAsFixed(1),
-              onChanged: (value) {
-                setState(() {
-                  _editingSetting = _editingSetting!.copyWith(vol: value);
-                  _hasChanges = true;
-                });
-              },
-            ),
-          ),
-
-          // 音调调节
-          ListTile(
-            title: Row(
-              children: [
-                const Text('音调'),
-                const SizedBox(width: 8),
-                Text(
-                  '(${_editingSetting!.pitch})',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            subtitle: Slider(
-              value: _editingSetting!.pitch.toDouble(),
-              min: -12,
-              max: 12,
-              divisions: 24,
-              label: _editingSetting!.pitch.toString(),
-              onChanged: (value) {
-                setState(() {
-                  _editingSetting =
-                      _editingSetting!.copyWith(pitch: value.round());
-                  _hasChanges = true;
-                });
-              },
-            ),
-          ),
-
-          // 情感参数
-          ListTile(
-            title: const Text('情感'),
-            subtitle: Text(_getEmotionName(_editingSetting!.emotion)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (context) => DraggableScrollableSheet(
-                  initialChildSize: 0.5,
-                  minChildSize: 0.3,
-                  maxChildSize: 0.95,
-                  expand: false,
-                  builder: (context, scrollController) => Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: const Text(
-                          '选择情感',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: ListView.builder(
-                          controller: scrollController,
-                          itemCount: _emotions.length,
-                          itemBuilder: (context, index) {
-                            final emotion = _emotions[index];
-                            return ListTile(
-                              title: Text(emotion['name']!),
-                              trailing: _editingSetting!.emotion ==
-                                      emotion['id']
-                                  ? Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .primaryColor
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '当前',
-                                        style: TextStyle(
-                                          color: Theme.of(context).primaryColor,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    )
-                                  : null,
-                              onTap: () {
-                                Navigator.pop(context);
-                                _updateEditingSetting(
-                                  _editingSetting!
-                                      .copyWith(emotion: emotion['id']),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-
-          // 缓存设置
-          ListTile(
-            title: Row(
-              children: [
-                const Text('缓存条数'),
-                const SizedBox(width: 8),
-                Text(
-                  '(${_editingSetting!.cacheLimit})',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('清除缓存'),
-                        content: const Text('确定要清除所有语音缓存吗？'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('取消'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              setState(() => _isLoading = true);
-                              try {
-                                await _audioPlayer.stop();
-                                await _ttsApi.clearCache();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('缓存已清除')),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('清除缓存失败：$e')),
-                                );
-                              } finally {
-                                setState(() => _isLoading = false);
-                              }
-                            },
-                            child: const Text('确定'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.cleaning_services_outlined, size: 18),
-                  label: const Text('清除缓存'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red[700],
-                  ),
-                ),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Slider(
-                  value: _editingSetting!.cacheLimit.toDouble(),
-                  min: 0,
-                  max: 50,
-                  divisions: 10,
-                  label: _editingSetting!.cacheLimit.toString(),
-                  onChanged: (value) {
-                    setState(() {
-                      _editingSetting = _editingSetting!.copyWith(
-                        cacheLimit: value.round(),
-                      );
-                      _hasChanges = true;
-                    });
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    '* 缓存条数越大，缓存越多，但可能会占用更多内存',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.7),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 提示信息
-          const SizedBox(height: 16),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.amber.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: Colors.amber[700],
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '(BETA)温馨提示',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.amber[700],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '• 部分音色支持试听功能，可点击播放按钮预览',
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Colors.amber[900]?.withOpacity(0.8),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '• 默认参数已经过优化调试，非必要情况下建议保持默认设置',
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Colors.amber[900]?.withOpacity(0.8),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '• 切换模型会导致之前缓存丢失',
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Colors.amber[900]?.withOpacity(0.8),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onPrimaryContainer,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
+
+          // 基础设置卡片
+          Card(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.tune,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '基础设置',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // 音色选择
+                  _buildSettingItem(
+                    context,
+                    icon: Icons.record_voice_over_outlined,
+                    title: '音色',
+                    subtitle: _getVoiceName(_editingSetting!.voiceId),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildPlayButton(_editingSetting!.voiceId),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                    onTap: () => _showVoiceSelector(context),
+                  ),
+                  const Divider(height: 24),
+                  // 情感选择
+                  _buildSettingItem(
+                    context,
+                    icon: Icons.emoji_emotions_outlined,
+                    title: '情感',
+                    subtitle: _getEmotionName(_editingSetting!.emotion),
+                    onTap: () => _showEmotionSelector(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 参数调节卡片
+          Card(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.settings_outlined,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '参数调节',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // 语速调节
+                  _buildSliderSetting(
+                    context,
+                    icon: Icons.speed,
+                    title: '语速',
+                    value: _editingSetting!.speed,
+                    min: 0.5,
+                    max: 2.0,
+                    divisions: 15,
+                    onChanged: (value) {
+                      setState(() {
+                        _editingSetting =
+                            _editingSetting!.copyWith(speed: value);
+                        _hasChanges = true;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  // 音量调节
+                  _buildSliderSetting(
+                    context,
+                    icon: Icons.volume_up_outlined,
+                    title: '音量',
+                    value: _editingSetting!.vol,
+                    min: 0.1,
+                    max: 10.0,
+                    divisions: 99,
+                    onChanged: (value) {
+                      setState(() {
+                        _editingSetting = _editingSetting!.copyWith(vol: value);
+                        _hasChanges = true;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  // 音调调节
+                  _buildSliderSetting(
+                    context,
+                    icon: Icons.music_note_outlined,
+                    title: '音调',
+                    value: _editingSetting!.pitch.toDouble(),
+                    min: -12,
+                    max: 12,
+                    divisions: 24,
+                    valueFormat: (value) => value.round().toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _editingSetting =
+                            _editingSetting!.copyWith(pitch: value.round());
+                        _hasChanges = true;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 缓存设置卡片
+          Card(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.storage_outlined,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '缓存设置',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => _showClearCacheDialog(context),
+                        icon: const Icon(Icons.cleaning_services_outlined,
+                            size: 18),
+                        label: const Text('清除缓存'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSliderSetting(
+                    context,
+                    icon: Icons.storage_outlined,
+                    title: '缓存条数',
+                    value: _editingSetting!.cacheLimit.toDouble(),
+                    min: 0,
+                    max: 50,
+                    divisions: 10,
+                    valueFormat: (value) => value.round().toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _editingSetting = _editingSetting!
+                            .copyWith(cacheLimit: value.round());
+                        _hasChanges = true;
+                      });
+                    },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 36, top: 8),
+                    child: Text(
+                      '* 缓存条数越大，缓存越多，但可能会占用更多内存',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.primary.withOpacity(0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 提示信息卡片
+          Card(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            color: theme.colorScheme.secondaryContainer.withOpacity(0.3),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: theme.colorScheme.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '温馨提示',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.secondary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'BETA',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTipItem(
+                    context,
+                    '部分音色支持试听功能，可点击播放按钮预览',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTipItem(
+                    context,
+                    '默认参数已经过优化调试，非必要情况下建议保持默认设置',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTipItem(
+                    context,
+                    '切换模型会导致之前缓存丢失',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) trailing,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliderSetting(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required ValueChanged<double> onChanged,
+    String Function(double)? valueFormat,
+  }) {
+    final theme = Theme.of(context);
+    final formattedValue = valueFormat?.call(value) ?? value.toStringAsFixed(1);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                formattedValue,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor: theme.colorScheme.primary.withOpacity(0.2),
+            thumbColor: theme.colorScheme.primary,
+            overlayColor: theme.colorScheme.primary.withOpacity(0.1),
+            trackHeight: 4,
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: formattedValue,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTipItem(BuildContext context, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '•',
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showVoiceSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) => Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.record_voice_over_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '选择音色',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: _voices.length,
+                  itemBuilder: (context, index) {
+                    final voice = _voices[index];
+                    final isSelected = _editingSetting!.voiceId == voice.id;
+                    return InkWell(
+                      onTap: () {
+                        if (_playingVoiceId != null) {
+                          _audioPlayer.stop();
+                          setState(() => _playingVoiceId = null);
+                        }
+                        Navigator.pop(context);
+                        _updateEditingSetting(
+                          _editingSetting!.copyWith(voiceId: voice.id),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                voice.name,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '当前',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            _buildPlayButton(voice.id),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEmotionSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) => Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.emoji_emotions_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '选择情感',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: _emotions.length,
+                  itemBuilder: (context, index) {
+                    final emotion = _emotions[index];
+                    final isSelected =
+                        _editingSetting!.emotion == emotion['id'];
+                    return InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _updateEditingSetting(
+                          _editingSetting!.copyWith(emotion: emotion['id']),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                emotion['name']!,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '当前',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showClearCacheDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Theme.of(context).colorScheme.error,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('清除缓存'),
+          ],
+        ),
+        content: const Text('确定要清除所有语音缓存吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              try {
+                await _audioPlayer.stop();
+                await _ttsApi.clearCache();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('缓存已清除')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('清除缓存失败：$e')),
+                  );
+                }
+              } finally {
+                setState(() => _isLoading = false);
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('确定'),
+          ),
         ],
       ),
     );

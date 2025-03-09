@@ -243,7 +243,8 @@ class _ChatBubbleState extends State<ChatBubble> {
                                         fontSize: 16,
                                       ),
                                     ),
-                          const SizedBox(height: 20), // 为按钮预留空间
+                          if (!isUser)
+                            const SizedBox(height: 20), // 只为非用户消息预留按钮空间
                         ],
                       ),
                       if (!isUser &&
