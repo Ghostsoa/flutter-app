@@ -43,33 +43,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _checkVersion() async {
+    if (!mounted) return;
+
     try {
       // 获取当前版本号
       final packageInfo = await PackageInfo.fromPlatform();
-      _currentVersion = packageInfo.version;
+      setState(() => _currentVersion = packageInfo.version);
 
       await _versionApi.init();
-      final versionInfo = await _versionApi.getVersion();
+      final versionInfo = await _versionApi.getVersion().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('版本检查超时');
+        },
+      );
 
-      if (mounted) {
-        setState(() {
-          _latestVersion = versionInfo.latestVersion;
-          _hasNewVersion =
-              _compareVersions(_currentVersion, versionInfo.latestVersion);
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _latestVersion = versionInfo.latestVersion;
+        _hasNewVersion =
+            _compareVersions(_currentVersion, versionInfo.latestVersion);
+      });
     } catch (e) {
       Logger.error('检查版本失败', error: e);
+      // 版本检查失败时，不显示更新提示
+      if (mounted) {
+        setState(() {
+          _hasNewVersion = false;
+        });
+      }
     }
   }
 
-  bool _compareVersions(String currentVersion, double latestVersion) {
+  bool _compareVersions(String currentVersion, double targetVersion) {
     try {
-      // 将当前版本号分割成主版本号和次版本号
       final parts = currentVersion.split('.');
       if (parts.length >= 2) {
-        final currentMainVersion = double.parse('${parts[0]}.${parts[1]}');
-        return currentMainVersion < latestVersion;
+        final major = int.parse(parts[0]);
+        final minor = int.parse(parts[1]);
+        final targetMajor = targetVersion.floor();
+        final targetMinor = ((targetVersion - targetMajor) * 10).floor();
+
+        if (major < targetMajor) return true;
+        if (major > targetMajor) return false;
+        return minor < targetMinor;
       }
       return false;
     } catch (e) {
@@ -617,7 +635,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  '* 兑换遇到问题请联系客服',
+                  '* 充值遇到问题请联系客服',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.primary,

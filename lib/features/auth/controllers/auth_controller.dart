@@ -20,9 +20,11 @@ class AuthController extends ChangeNotifier {
   double? _latestVersion;
   bool _hasNewVersion = false;
   bool _needsForceUpdate = false;
+  bool _isInitialized = false;
 
   bool get isLoading => _isLoading;
   bool get isCheckingVersion => _isCheckingVersion;
+  bool get isInitialized => _isInitialized;
   User? get currentUser => _currentUser;
   bool get hasNewVersion => _hasNewVersion;
   bool get needsForceUpdate => _needsForceUpdate;
@@ -32,26 +34,29 @@ class AuthController extends ChangeNotifier {
   AuthController._internal();
 
   Future<void> init() async {
+    if (_isInitialized) return;
+
     try {
-      _isCheckingVersion = true;
+      _isLoading = true;
       notifyListeners();
 
-      // 初始化版本检查
-      await _checkVersion();
-
-      // 如果需要强制更新，就不继续初始化其他内容
-      if (_needsForceUpdate) {
-        return;
-      }
-
-      // 初始化其他
+      // 初始化基础服务
       _prefs = await SharedPreferences.getInstance();
       _repository = await AuthRepository.create();
+      _isInitialized = true;
+
+      // 尝试自动登录
       await _tryAutoLogin();
+
+      // 登录成功后再检查版本
+      if (_currentUser != null) {
+        await _checkVersion();
+      }
     } catch (e, stackTrace) {
       Logger.error('初始化失败', error: e, stackTrace: stackTrace);
+      rethrow;
     } finally {
-      _isCheckingVersion = false;
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -83,8 +88,14 @@ class AuthController extends ChangeNotifier {
     try {
       final parts = currentVersion.split('.');
       if (parts.length >= 2) {
-        final currentMainVersion = double.parse('${parts[0]}.${parts[1]}');
-        return currentMainVersion < targetVersion;
+        final major = int.parse(parts[0]);
+        final minor = int.parse(parts[1]);
+        final targetMajor = targetVersion.floor();
+        final targetMinor = ((targetVersion - targetMajor) * 10).floor();
+
+        if (major < targetMajor) return true;
+        if (major > targetMajor) return false;
+        return minor < targetMinor;
       }
       return false;
     } catch (e) {
@@ -194,6 +205,10 @@ class AuthController extends ChangeNotifier {
 
       _currentUser = user;
       developer.log('用户信息已更新: ${user.toString()}');
+
+      // 登录成功后检查版本
+      await _checkVersion();
+
       return true;
     } catch (e, stackTrace) {
       developer.log(

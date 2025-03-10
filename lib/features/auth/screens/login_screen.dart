@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _rememberMe = false;
+  bool _isInitializing = true;
 
   @override
   void initState() {
@@ -29,10 +30,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _initialize() async {
-    await _authController.init();
-    await _loadSavedCredentials();
-    if (_authController.needsForceUpdate && mounted) {
-      _showForceUpdateDialog();
+    try {
+      await _authController.init();
+      await _loadSavedCredentials();
+      if (_authController.needsForceUpdate && mounted) {
+        _showForceUpdateDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('初始化失败，请重试'),
+            action: SnackBarAction(
+              label: '重试',
+              onPressed: _initialize,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isInitializing = false);
+      }
     }
   }
 
@@ -199,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (_authController.isCheckingVersion) {
+    if (_isInitializing || _authController.isLoading) {
       return Scaffold(
         body: Center(
           child: Column(
@@ -210,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                '正在检查版本...',
+                '正在加载...',
                 style: TextStyle(
                   color: theme.colorScheme.primary,
                   fontSize: 16,
