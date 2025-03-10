@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,6 +9,10 @@ import '../widgets/transaction_history_sheet.dart';
 import '../../../data/models/user.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../settings/screens/voice_setting_screen.dart';
+import '../../../core/network/api/card_key_api.dart';
+import '../../../core/network/api/version_api.dart';
+import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,11 +27,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
   WalletApi? _walletApi;
   double _balance = 0;
   bool _isLoading = true;
+  final _cardKeyApi = CardKeyApi();
+  final _versionApi = VersionApi();
+  bool _isRedeeming = false;
+  String _currentVersion = '1.0.0'; // 从pubspec.yaml中的版本号
+  double? _latestVersion;
+  bool _hasNewVersion = false;
 
   @override
   void initState() {
     super.initState();
     _initWalletApi();
+    _initApi();
+    _checkVersion();
+  }
+
+  Future<void> _checkVersion() async {
+    try {
+      // 获取当前版本号
+      final packageInfo = await PackageInfo.fromPlatform();
+      _currentVersion = packageInfo.version;
+
+      await _versionApi.init();
+      final versionInfo = await _versionApi.getVersion();
+
+      if (mounted) {
+        setState(() {
+          _latestVersion = versionInfo.latestVersion;
+          _hasNewVersion =
+              _compareVersions(_currentVersion, versionInfo.latestVersion);
+        });
+      }
+    } catch (e) {
+      Logger.error('检查版本失败', error: e);
+    }
+  }
+
+  bool _compareVersions(String currentVersion, double latestVersion) {
+    try {
+      // 将当前版本号分割成主版本号和次版本号
+      final parts = currentVersion.split('.');
+      if (parts.length >= 2) {
+        final currentMainVersion = double.parse('${parts[0]}.${parts[1]}');
+        return currentMainVersion < latestVersion;
+      }
+      return false;
+    } catch (e) {
+      Logger.error('版本号比较失败', error: e);
+      return false;
+    }
+  }
+
+  Future<void> _handleUpdate() async {
+    final url = Platform.isAndroid
+        ? 'https://ai.xiaoyi.live/%E7%BD%91%E6%87%BF%E4%BA%91AI.apk'
+        : 'https://ai.xiaoyi.live/%E7%BD%91%E6%87%BF%E4%BA%91AI.ipa';
+
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('无法打开下载链接')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('打开下载链接失败：$e')),
+        );
+      }
+    }
   }
 
   Future<void> _initWalletApi() async {
@@ -215,22 +288,432 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _initApi() async {
+    await _cardKeyApi.init();
+  }
+
+  void _showRechargeDialog() {
+    final controller = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SingleChildScrollView(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.diamond_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '获取小懿币',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: '请输入兑换码',
+                  hintText: '例如：a1b2c3d4e5f6g7h8',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.content_paste),
+                        onPressed: () async {
+                          final data = await Clipboard.getData('text/plain');
+                          if (data?.text != null) {
+                            controller.text = data!.text!;
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      FilledButton(
+                        onPressed: _isRedeeming
+                            ? null
+                            : () async {
+                                final key = controller.text.trim();
+                                if (key.isEmpty) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.warning_amber_rounded,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .error,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Text('提示'),
+                                        ],
+                                      ),
+                                      content: const Text('请输入兑换码'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('确定'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setState(() => _isRedeeming = true);
+                                try {
+                                  await _cardKeyApi.redeemCardKey(key);
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text('成功'),
+                                          ],
+                                        ),
+                                        content: const Text('兑换成功'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('确定'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    // 刷新余额
+                                    _refreshBalance();
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.error_outline,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .error,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text('兑换失败'),
+                                          ],
+                                        ),
+                                        content: Text(e.toString()),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('确定'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) {
+                                    setState(() => _isRedeeming = false);
+                                  }
+                                }
+                              },
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        child: _isRedeeming
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Text('兑换'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '* 兑换码仅能使用一次，请勿重复使用',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.primary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 16),
+              _buildRechargeOption(
+                context,
+                icon: Icons.favorite_outline,
+                title: '赞助获取',
+                subtitle: '通过赞助获得小懿币',
+                onTap: () async {
+                  const url = 'https://h5c.fakamiao.top/shopDetail/ayLoyH';
+                  try {
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url),
+                          mode: LaunchMode.externalApplication);
+                    } else {
+                      if (mounted) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text('错误'),
+                              ],
+                            ),
+                            content: const Text('无法打开赞助链接'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('确定'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('错误'),
+                            ],
+                          ),
+                          content: Text('打开赞助链接失败：$e'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('确定'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildRechargeOption(
+                context,
+                icon: Icons.card_giftcard_outlined,
+                title: '获取兑换码',
+                subtitle: '通过兑换码获得小懿币',
+                onTap: () async {
+                  const url = 'https://shop.xiaoman.top//links/4D1256ED';
+                  try {
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url),
+                          mode: LaunchMode.externalApplication);
+                    } else {
+                      if (mounted) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text('错误'),
+                              ],
+                            ),
+                            content: const Text('无法打开链接'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('确定'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('错误'),
+                            ],
+                          ),
+                          content: Text('打开链接失败：$e'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('确定'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  '* 充值遇到问题请联系客服',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.primary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRechargeOption(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.2),
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = _authController.currentUser;
 
-    final profileItems = [
-      _buildUserInfoCard(theme, user),
-      const SizedBox(height: 24),
-      _buildWalletCard(theme),
-      const SizedBox(height: 24),
-      ..._buildActionItems(theme),
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('我的'),
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -243,142 +726,274 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: profileItems.length,
-        itemBuilder: (context, index) => profileItems[index],
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        children: [
+          _buildUserInfoCard(theme, user),
+          if (_hasNewVersion) ...[
+            const SizedBox(height: 20),
+            _buildUpdateCard(theme),
+          ],
+          const SizedBox(height: 20),
+          _buildWalletCard(theme),
+          const SizedBox(height: 20),
+          ..._buildActionItems(theme),
+        ],
       ),
     );
   }
 
   Widget _buildUserInfoCard(ThemeData theme, User? user) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-            width: 1,
-          ),
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.12),
+          width: 1,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.username ?? '未登录',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          user?.email ?? '',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ID',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          user?.id.toString() ?? 'N/A',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (user?.createdAt != null)
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '注册时间',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('yyyy-MM-dd').format(
-                              DateTime.parse(user!.createdAt),
-                            ),
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.05),
+              theme.colorScheme.primary.withOpacity(0.02),
             ],
           ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    user?.username ?? '未登录',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _hasNewVersion
+                        ? theme.colorScheme.error.withOpacity(0.1)
+                        : theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'v$_currentVersion',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _hasNewVersion
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (_hasNewVersion) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.new_releases,
+                          size: 14,
+                          color: theme.colorScheme.error,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (user?.email != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                user!.email,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ID',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.id.toString() ?? 'N/A',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (user?.createdAt != null)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '注册时间',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('yyyy-MM-dd').format(
+                            DateTime.parse(user!.createdAt),
+                          ),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpdateCard(ThemeData theme) {
+    if (!_hasNewVersion) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.error.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      color: theme.colorScheme.errorContainer.withOpacity(0.5),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.system_update,
+              size: 20,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '发现新版本 v${_latestVersion?.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '点击更新获取最新版本',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color:
+                          theme.colorScheme.onErrorContainer.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: _handleUpdate,
+              style: TextButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              child: const Text('更新'),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildWalletCard(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-            width: 1,
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.12),
+          width: 1,
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.15),
+              theme.colorScheme.primary.withOpacity(0.05),
+            ],
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.monetization_on,
-                  color: theme.colorScheme.primary,
-                ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 16),
-              Column(
+              child: Icon(
+                Icons.diamond_outlined,
+                color: theme.colorScheme.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '小懿币',
-                    style: theme.textTheme.bodyMedium,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   if (_isLoading)
@@ -392,28 +1007,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   else
                     Text(
                       _balance.toStringAsFixed(2),
-                      style: theme.textTheme.titleLarge?.copyWith(
+                      style: theme.textTheme.headlineSmall?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                 ],
               ),
-              const Spacer(),
-              IconButton(
-                icon: _isRefreshing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.refresh),
-                onPressed: _isRefreshing ? null : _refreshBalance,
-              ),
-            ],
-          ),
+            ),
+            IconButton(
+              icon: _isRefreshing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Icon(
+                      Icons.refresh,
+                      color: theme.colorScheme.primary,
+                    ),
+              onPressed: _isRefreshing ? null : _refreshBalance,
+            ),
+          ],
         ),
       ),
     );
@@ -422,79 +1039,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Widget> _buildActionItems(ThemeData theme) {
     final themeProvider = ThemeProvider();
     return [
-      _buildActionTile(
-        theme,
-        icon: Icons.account_balance_wallet,
-        title: '赞助我们',
-        onTap: () async {
-          const url = 'https://h5c.fakamiao.top/shopDetail/ayLoyH';
-          try {
-            Logger.info('正在打开充值链接：$url');
-            if (await canLaunchUrl(Uri.parse(url))) {
-              await launchUrl(Uri.parse(url));
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('无法打开充值页面')),
-                );
-              }
-            }
-          } catch (e, stackTrace) {
-            Logger.error('打开充值链接失败', error: e, stackTrace: stackTrace);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('打开充值页面失败：$e')),
-              );
-            }
-          }
-        },
-      ),
-      const Divider(indent: 72),
-      _buildActionTile(
-        theme,
-        icon: Icons.receipt_long,
-        title: '最近消耗记录',
-        subtitle: '查看消耗明细',
-        onTap: _showTransactionHistory,
-      ),
-      const Divider(indent: 72),
-      _buildActionTile(
-        theme,
-        icon: Icons.help_outline,
-        title: '官方讨论与反馈',
-        onTap: _showHelpDialog,
-      ),
-      const Divider(indent: 72),
-      _buildActionTile(
-        theme,
-        icon: Icons.record_voice_over_outlined,
-        title: '语音设置',
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const VoiceSettingScreen(),
+      Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.12),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildActionTile(
+              theme,
+              icon: Icons.diamond_outlined,
+              title: '获取小懿币',
+              subtitle: '赞助或使用兑换码',
+              onTap: _showRechargeDialog,
             ),
-          );
-        },
-      ),
-      const Divider(indent: 72),
-      _buildActionTile(
-        theme,
-        icon: Icons.dark_mode,
-        title: '深色模式',
-        trailing: Switch(
-          value: themeProvider.isDarkMode,
-          onChanged: (bool value) async {
-            await themeProvider.toggleTheme();
-          },
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            _buildActionTile(
+              theme,
+              icon: Icons.receipt_long,
+              title: '最近消耗记录',
+              subtitle: '查看消耗明细',
+              onTap: _showTransactionHistory,
+            ),
+          ],
         ),
       ),
-      const Divider(indent: 72),
-      _buildActionTile(
-        theme,
-        icon: Icons.info_outline,
-        title: '关于',
-        onTap: _showAboutDialog,
+      const SizedBox(height: 20),
+      Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.12),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildActionTile(
+              theme,
+              icon: Icons.help_outline,
+              title: '官方讨论与反馈',
+              onTap: _showHelpDialog,
+            ),
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            _buildActionTile(
+              theme,
+              icon: Icons.record_voice_over_outlined,
+              title: '语音设置',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const VoiceSettingScreen(),
+                  ),
+                );
+              },
+            ),
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            _buildActionTile(
+              theme,
+              icon: Icons.dark_mode,
+              title: '深色模式',
+              trailing: Switch(
+                value: themeProvider.isDarkMode,
+                onChanged: (bool value) async {
+                  await themeProvider.toggleTheme();
+                },
+              ),
+            ),
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            _buildActionTile(
+              theme,
+              icon: Icons.info_outline,
+              title: '关于',
+              onTap: _showAboutDialog,
+            ),
+          ],
+        ),
       ),
     ];
   }
@@ -508,12 +1133,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Widget? trailing,
   }) {
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: theme.colorScheme.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(
           icon,
@@ -521,9 +1147,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           size: 20,
         ),
       ),
-      title: Text(title),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: trailing ?? const Icon(Icons.chevron_right),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            )
+          : null,
+      trailing: trailing ??
+          Icon(Icons.chevron_right,
+              color: theme.colorScheme.primary.withOpacity(0.5)),
       onTap: onTap,
     );
   }

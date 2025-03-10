@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/models/user.dart';
 import '../../../core/utils/logger.dart';
+import '../../../core/network/api/version_api.dart';
 
 class AuthController extends ChangeNotifier {
   static final AuthController _instance = AuthController._internal();
@@ -13,16 +15,82 @@ class AuthController extends ChangeNotifier {
   late final SharedPreferences _prefs;
   User? _currentUser;
   bool _isLoading = false;
+  bool _isCheckingVersion = false;
+  String _currentVersion = '';
+  double? _latestVersion;
+  bool _hasNewVersion = false;
+  bool _needsForceUpdate = false;
 
   bool get isLoading => _isLoading;
+  bool get isCheckingVersion => _isCheckingVersion;
   User? get currentUser => _currentUser;
+  bool get hasNewVersion => _hasNewVersion;
+  bool get needsForceUpdate => _needsForceUpdate;
+  String get currentVersion => _currentVersion;
+  double? get latestVersion => _latestVersion;
 
   AuthController._internal();
 
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-    _repository = await AuthRepository.create();
-    await _tryAutoLogin();
+    try {
+      _isCheckingVersion = true;
+      notifyListeners();
+
+      // 初始化版本检查
+      await _checkVersion();
+
+      // 如果需要强制更新，就不继续初始化其他内容
+      if (_needsForceUpdate) {
+        return;
+      }
+
+      // 初始化其他
+      _prefs = await SharedPreferences.getInstance();
+      _repository = await AuthRepository.create();
+      await _tryAutoLogin();
+    } catch (e, stackTrace) {
+      Logger.error('初始化失败', error: e, stackTrace: stackTrace);
+    } finally {
+      _isCheckingVersion = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _checkVersion() async {
+    try {
+      // 获取当前版本号
+      final packageInfo = await PackageInfo.fromPlatform();
+      _currentVersion = packageInfo.version;
+
+      // 初始化版本API并检查版本
+      final versionApi = VersionApi();
+      await versionApi.init();
+      final versionInfo = await versionApi.getVersion();
+
+      _latestVersion = versionInfo.latestVersion;
+      _hasNewVersion =
+          _compareVersions(_currentVersion, versionInfo.latestVersion);
+      _needsForceUpdate =
+          _compareVersions(_currentVersion, versionInfo.minVersion);
+
+      notifyListeners();
+    } catch (e) {
+      Logger.error('版本检查失败', error: e);
+    }
+  }
+
+  bool _compareVersions(String currentVersion, double targetVersion) {
+    try {
+      final parts = currentVersion.split('.');
+      if (parts.length >= 2) {
+        final currentMainVersion = double.parse('${parts[0]}.${parts[1]}');
+        return currentMainVersion < targetVersion;
+      }
+      return false;
+    } catch (e) {
+      Logger.error('版本号比较失败', error: e);
+      return false;
+    }
   }
 
   Future<void> _tryAutoLogin() async {
@@ -36,21 +104,10 @@ class AuthController extends ChangeNotifier {
       final rememberMe = _prefs.getBool('remember_me') ?? false;
 
       if (savedEmail != null && savedPassword != null && rememberMe) {
-        Logger.info('尝试使用保存的账号密码自动登录');
-        // 先尝试快速登录
-        final quickLoginResult = await _repository.quickLogin();
-
-        if (quickLoginResult != null) {
-          final (user, _) = quickLoginResult;
-          _currentUser = user;
-          Logger.info('快速登录成功');
-        } else {
-          // 如果快速登录失败，尝试使用账号密码登录
-          Logger.info('快速登录失败，尝试使用账号密码登录');
-          final (user, _) = await _repository.login(savedEmail, savedPassword);
-          _currentUser = user;
-          Logger.info('账号密码登录成功');
-        }
+        Logger.info('尝试使用保存的账号密码登录');
+        final (user, _) = await _repository.login(savedEmail, savedPassword);
+        _currentUser = user;
+        Logger.info('账号密码登录成功');
       }
     } catch (e, stackTrace) {
       Logger.error('自动登录失败', error: e, stackTrace: stackTrace);

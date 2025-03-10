@@ -36,51 +36,53 @@ class _VoiceSettingScreenState extends State<VoiceSettingScreen> {
   // 音色列表
   final List<VoiceInfo> _voices = [
     // 可试听音色
-    VoiceInfo(id: 'female-shaonv', name: '少女', canPreview: true),
-    VoiceInfo(id: 'female-yujie', name: '御姐', canPreview: true),
-    VoiceInfo(id: 'female-chengshu', name: '成熟女性', canPreview: true),
-    VoiceInfo(id: 'female-tianmei', name: '甜美女性', canPreview: true),
-    VoiceInfo(id: 'male-qn-qingse', name: '青涩青年', canPreview: true),
-    VoiceInfo(id: 'male-qn-jingying', name: '精英青年', canPreview: true),
-    VoiceInfo(id: 'male-qn-badao', name: '霸道青年', canPreview: true),
-    VoiceInfo(id: 'presenter_male', name: '男性主持人', canPreview: true),
-    VoiceInfo(id: 'audiobook_male_2', name: '男性有声书2', canPreview: true),
-    VoiceInfo(id: 'audiobook_female_1', name: '女性有声书1', canPreview: true),
-    VoiceInfo(id: 'audiobook_female_2', name: '女性有声书2', canPreview: true),
-    VoiceInfo(id: 'bingjiao_didi', name: '病娇弟弟', canPreview: true),
-    VoiceInfo(id: 'tianxin_xiaoling', name: '甜心小玲', canPreview: true),
-    VoiceInfo(id: 'wumei_yujie', name: '妩媚御姐', canPreview: true),
+    const VoiceInfo(id: 'female-shaonv', name: '少女', canPreview: true),
+    const VoiceInfo(id: 'female-yujie', name: '御姐', canPreview: true),
+    const VoiceInfo(id: 'female-chengshu', name: '成熟女性', canPreview: true),
+    const VoiceInfo(id: 'female-tianmei', name: '甜美女性', canPreview: true),
+    const VoiceInfo(id: 'male-qn-qingse', name: '青涩青年', canPreview: true),
+    const VoiceInfo(id: 'male-qn-jingying', name: '精英青年', canPreview: true),
+    const VoiceInfo(id: 'male-qn-badao', name: '霸道青年', canPreview: true),
+    const VoiceInfo(id: 'presenter_male', name: '男性主持人', canPreview: true),
+    const VoiceInfo(id: 'audiobook_male_2', name: '男性有声书2', canPreview: true),
+    const VoiceInfo(id: 'audiobook_female_1', name: '女性有声书1', canPreview: true),
+    const VoiceInfo(id: 'audiobook_female_2', name: '女性有声书2', canPreview: true),
+    const VoiceInfo(id: 'bingjiao_didi', name: '病娇弟弟', canPreview: true),
+    const VoiceInfo(id: 'tianxin_xiaoling', name: '甜心小玲', canPreview: true),
+    const VoiceInfo(id: 'wumei_yujie', name: '妩媚御姐', canPreview: true),
     // 其他音色
-    VoiceInfo(id: 'male-qn-daxuesheng', name: '青年大学生', canPreview: false),
-    VoiceInfo(id: 'presenter_female', name: '女性主持人', canPreview: false),
-    VoiceInfo(id: 'audiobook_male_1', name: '男性有声书1', canPreview: false),
-    VoiceInfo(
+    const VoiceInfo(id: 'male-qn-daxuesheng', name: '青年大学生', canPreview: false),
+    const VoiceInfo(id: 'presenter_female', name: '女性主持人', canPreview: false),
+    const VoiceInfo(id: 'audiobook_male_1', name: '男性有声书1', canPreview: false),
+    const VoiceInfo(
         id: 'male-qn-qingse-jingpin', name: '青涩青年-beta', canPreview: false),
-    VoiceInfo(
+    const VoiceInfo(
         id: 'male-qn-jingying-jingpin', name: '精英青年-beta', canPreview: false),
-    VoiceInfo(
+    const VoiceInfo(
         id: 'male-qn-badao-jingpin', name: '霸道青年-beta', canPreview: false),
-    VoiceInfo(
+    const VoiceInfo(
         id: 'male-qn-daxuesheng-jingpin',
         name: '青年大学生-beta',
         canPreview: false),
-    VoiceInfo(id: 'female-shaonv-jingpin', name: '少女-beta', canPreview: false),
-    VoiceInfo(id: 'female-yujie-jingpin', name: '御姐-beta', canPreview: false),
-    VoiceInfo(
+    const VoiceInfo(
+        id: 'female-shaonv-jingpin', name: '少女-beta', canPreview: false),
+    const VoiceInfo(
+        id: 'female-yujie-jingpin', name: '御姐-beta', canPreview: false),
+    const VoiceInfo(
         id: 'female-chengshu-jingpin', name: '成熟女性-beta', canPreview: false),
-    VoiceInfo(
+    const VoiceInfo(
         id: 'female-tianmei-jingpin', name: '甜美女性-beta', canPreview: false),
-    VoiceInfo(id: 'clever_boy', name: '聪明男童', canPreview: false),
-    VoiceInfo(id: 'cute_boy', name: '可爱男童', canPreview: false),
-    VoiceInfo(id: 'lovely_girl', name: '萌萌女童', canPreview: false),
-    VoiceInfo(id: 'cartoon_pig', name: '卡通猪小琪', canPreview: false),
-    VoiceInfo(id: 'junlang_nanyou', name: '俊朗男友', canPreview: false),
-    VoiceInfo(id: 'chunzhen_xuedi', name: '纯真学弟', canPreview: false),
-    VoiceInfo(id: 'lengdan_xiongzhang', name: '冷淡学长', canPreview: false),
-    VoiceInfo(id: 'badao_shaoye', name: '霸道少爷', canPreview: false),
-    VoiceInfo(id: 'qiaopi_mengmei', name: '俏皮萌妹', canPreview: false),
-    VoiceInfo(id: 'diadia_xuemei', name: '嗲嗲学妹', canPreview: false),
-    VoiceInfo(id: 'danya_xuejie', name: '淡雅学姐', canPreview: false),
+    const VoiceInfo(id: 'clever_boy', name: '聪明男童', canPreview: false),
+    const VoiceInfo(id: 'cute_boy', name: '可爱男童', canPreview: false),
+    const VoiceInfo(id: 'lovely_girl', name: '萌萌女童', canPreview: false),
+    const VoiceInfo(id: 'cartoon_pig', name: '卡通猪小琪', canPreview: false),
+    const VoiceInfo(id: 'junlang_nanyou', name: '俊朗男友', canPreview: false),
+    const VoiceInfo(id: 'chunzhen_xuedi', name: '纯真学弟', canPreview: false),
+    const VoiceInfo(id: 'lengdan_xiongzhang', name: '冷淡学长', canPreview: false),
+    const VoiceInfo(id: 'badao_shaoye', name: '霸道少爷', canPreview: false),
+    const VoiceInfo(id: 'qiaopi_mengmei', name: '俏皮萌妹', canPreview: false),
+    const VoiceInfo(id: 'diadia_xuemei', name: '嗲嗲学妹', canPreview: false),
+    const VoiceInfo(id: 'danya_xuejie', name: '淡雅学姐', canPreview: false),
   ];
 
   // 情感参数列表

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 import '../controllers/auth_controller.dart';
 import '../../../core/utils/logger.dart';
 import './register_screen.dart';
@@ -23,12 +25,15 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _initAuth();
-    _loadSavedCredentials();
+    _initialize();
   }
 
-  Future<void> _initAuth() async {
+  Future<void> _initialize() async {
     await _authController.init();
+    await _loadSavedCredentials();
+    if (_authController.needsForceUpdate && mounted) {
+      _showForceUpdateDialog();
+    }
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -57,6 +62,85 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.remove('saved_password');
       await prefs.setBool('remember_me', false);
     }
+  }
+
+  Future<void> _handleUpdate() async {
+    final url = Platform.isAndroid
+        ? 'https://ai.xiaoyi.live/%E7%BD%91%E6%87%BF%E4%BA%91AI.apk'
+        : 'https://ai.xiaoyi.live/%E7%BD%91%E6%87%BF%E4%BA%91AI.ipa';
+
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('无法打开下载链接')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('打开下载链接失败：$e')),
+        );
+      }
+    }
+  }
+
+  void _showForceUpdateDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                Icons.system_update,
+                color: Theme.of(context).colorScheme.error,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text('版本更新'),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '当前版本过低，需要更新后才能继续使用。',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '请点击下方按钮下载最新版本。',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                _handleUpdate();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('立即更新'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -114,6 +198,30 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (_authController.isCheckingVersion) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '正在检查版本...',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
