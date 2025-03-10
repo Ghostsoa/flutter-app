@@ -635,7 +635,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  '* 充值遇到问题请联系客服',
+                  '* 兑换遇到问题请联系客服',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.primary,
