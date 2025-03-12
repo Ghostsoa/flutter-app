@@ -19,7 +19,7 @@ class StoryExportUtil {
       // 选择保存位置
       final result = await FilePicker.platform.saveFile(
         dialogTitle: '导出故事',
-        fileName: '${story.title}.story.json',
+        fileName: '${story.title}(故事).json',
         allowedExtensions: ['json'],
         type: FileType.custom,
         bytes: bytes,

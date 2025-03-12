@@ -26,9 +26,26 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen> {
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          color: Colors.white,
+          tooltip: '返回',
+        ),
+      ),
       flexibleSpace: FlexibleSpaceBar(
         background: Hero(
           tag: 'group-background-${widget.group.id}',
@@ -255,66 +272,63 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen> {
             right: 16,
             bottom: 16,
             child: SafeArea(
-              child: Hero(
-                tag: 'chat-button-${widget.group.id}',
-                child: Container(
-                  decoration: BoxDecoration(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _navigateToChat,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _navigateToChat,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary,
+                            Color.lerp(
                               theme.colorScheme.primary,
-                              Color.lerp(
-                                theme.colorScheme.primary,
-                                theme.colorScheme.secondary,
-                                0.6,
-                              )!,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
+                              theme.colorScheme.secondary,
+                              0.6,
+                            )!,
+                          ],
                         ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.chat_bubble_outline_rounded,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              color: theme.colorScheme.onPrimary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '开始对话',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                                 color: theme.colorScheme.onPrimary,
-                                size: 20,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '开始对话',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onPrimary,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: theme.colorScheme.onPrimary
-                                    .withOpacity(0.8),
-                                size: 16,
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color:
+                                  theme.colorScheme.onPrimary.withOpacity(0.8),
+                              size: 16,
+                            ),
+                          ],
                         ),
                       ),
                     ),

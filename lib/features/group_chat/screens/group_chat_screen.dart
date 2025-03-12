@@ -518,21 +518,15 @@ class _GroupChatScreenState extends State<GroupChatScreen>
                     );
                   },
                 ),
-                Hero(
-                  tag: 'chat-button-${widget.group.id}',
-                  child: Material(
-                    color: Colors.transparent,
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _isLoadingNotifier,
-                      builder: (context, isLoading, _) {
-                        return GroupChatInput(
-                          controller: _messageController,
-                          isLoading: isLoading,
-                          onSend: _handleSendMessage,
-                        );
-                      },
-                    ),
-                  ),
+                ValueListenableBuilder<bool>(
+                  valueListenable: _isLoadingNotifier,
+                  builder: (context, isLoading, _) {
+                    return GroupChatInput(
+                      controller: _messageController,
+                      isLoading: isLoading,
+                      onSend: _handleSendMessage,
+                    );
+                  },
                 ),
               ],
             ),
