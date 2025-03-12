@@ -15,7 +15,7 @@ Story _$StoryFromJson(Map<String, dynamic> json) => Story(
       backgroundImagePath: json['backgroundImagePath'] as String?,
       opening: json['opening'] as String,
       settings: json['settings'] as String,
-      distillationRounds: (json['distillationRounds'] as num?)?.toInt() ?? 50,
+      distillationRounds: (json['distillationRounds'] as num?)?.toInt() ?? 20,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );

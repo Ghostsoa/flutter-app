@@ -20,7 +20,7 @@ class StoryApi {
       final response = await _client.post(
         '/api/v1/chat/completions',
         data: {
-          'model': 'gemini-2.0-flash-exp',
+          'model': 'gemini-story',
           'messages': messages
               .map((m) => {
                     'role': m.role.name,
@@ -75,7 +75,7 @@ class StoryApi {
       final response = await _client.post(
         '/api/v1/chat/completions',
         data: {
-          'model': 'gemini-2.0-flash-exp',
+          'model': 'gemini-distill',
           'messages': messages
               .map((m) => {
                     'role': m.role.name,

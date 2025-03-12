@@ -5,6 +5,11 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'dart:io';
 import '../../../data/models/character.dart';
 import '../../../data/repositories/character_repository.dart';
+import 'package:file_picker/file_picker.dart';
+import '../../../core/utils/character_codec.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:image/image.dart' as img;
 
 class EditCharacterScreen extends StatefulWidget {
   final Character? character;
@@ -84,8 +89,9 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
       );
 
       if (image != null) {
+        final savedPath = await _processAndSaveImage(File(image.path));
         setState(() {
-          _selectedImage = File(image.path);
+          _selectedImage = File(savedPath);
           _coverImageUrl = null;
         });
       }
@@ -95,6 +101,74 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
           SnackBar(content: Text('选择图片失败：$e')),
         );
       }
+    }
+  }
+
+  Future<String> _processAndSaveImage(File file) async {
+    try {
+      // 获取应用文档目录
+      final appDir = await getApplicationDocumentsDirectory();
+      final charactersDir = Directory(path.join(appDir.path, 'characters'));
+      if (!await charactersDir.exists()) {
+        await charactersDir.create(recursive: true);
+      }
+
+      // 获取原始文件扩展名
+      final extension = path.extension(file.path).toLowerCase();
+      final isGif = extension == '.gif';
+
+      // 生成唯一文件名
+      final fileName = '${const Uuid().v4()}$extension';
+      final savedPath = path.join(charactersDir.path, fileName);
+
+      if (isGif) {
+        // GIF文件直接复制
+        await file.copy(savedPath);
+      } else {
+        // 读取图片
+        final bytes = await file.readAsBytes();
+        final image = img.decodeImage(bytes);
+
+        if (image == null) throw '无法解码图片';
+
+        // 计算新的尺寸（保持宽高比）
+        const maxSize = 800.0;
+        double width = image.width.toDouble();
+        double height = image.height.toDouble();
+
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = height * (maxSize / width);
+            width = maxSize;
+          } else {
+            width = width * (maxSize / height);
+            height = maxSize;
+          }
+        }
+
+        // 调整图片大小
+        final resized = img.copyResize(
+          image,
+          width: width.round(),
+          height: height.round(),
+          interpolation: img.Interpolation.linear,
+        );
+
+        // 保存图片
+        final quality = extension == '.png' ? 9 : 85; // PNG使用压缩级别，JPG使用质量
+        if (extension == '.png') {
+          final encoded = img.encodePng(resized, level: quality);
+          await File(savedPath).writeAsBytes(encoded);
+        } else {
+          final encoded = img.encodeJpg(resized, quality: quality);
+          await File(savedPath).writeAsBytes(encoded);
+        }
+      }
+
+      return savedPath;
+    } catch (e) {
+      debugPrint('处理图片失败: $e');
+      rethrow;
     }
   }
 
@@ -198,73 +272,102 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     }
   }
 
-  void _addStatus() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        String name = '';
-        String type = 'text';
+  Future<void> _handleImport(BuildContext context) async {
+    try {
+      // 选择文件
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        allowMultiple: false,
+      );
 
-        return AlertDialog(
-          title: const Text('添加状态'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: '状态名称',
-                  hintText: '例如：生命值、心情等',
-                ),
-                onChanged: (value) => name = value,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: type,
-                decoration: const InputDecoration(
-                  labelText: '状态类型',
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'text',
-                    child: Text('文本'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'number',
-                    child: Text('数值'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    type = value;
-                  }
-                },
-              ),
-            ],
-          ),
+      if (result == null || result.files.isEmpty) return;
+
+      final file = File(result.files.first.path!);
+      if (!await file.exists()) throw '文件不存在';
+
+      // 读取并解码文件内容
+      final encoded = await file.readAsString();
+      final character = CharacterCodec.decode(encoded);
+
+      if (character == null) {
+        throw '无效的角色数据格式';
+      }
+
+      if (!mounted) return;
+
+      // 如果有图片数据，需要保存图片
+      String? coverImageUrl;
+      if (character.coverImageUrl != null) {
+        final imageFile = File(character.coverImageUrl!);
+        if (await imageFile.exists()) {
+          coverImageUrl = await _processAndSaveImage(imageFile);
+        }
+      }
+
+      // 显示确认对话框
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('导入角色'),
+          content: Text('是否要导入角色【${character.name}】的设置？\n导入后您仍可以修改各项参数。'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('取消'),
             ),
             FilledButton(
-              onPressed: () {
-                if (name.isNotEmpty) {
-                  setState(() {
-                    _statusList.add(CharacterStatus(
-                      name: name,
-                      type: type,
-                      value: type == 'number' ? '0' : '',
-                    ));
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('添加'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('导入'),
             ),
           ],
-        );
-      },
-    );
+        ),
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      // 填充表单数据
+      setState(() {
+        _nameController.text = character.name;
+        _descriptionController.text = character.description;
+        _userSettingController.text = character.userSetting ?? '';
+        _greetingController.text = character.greeting ?? '';
+        _coverImageUrl = coverImageUrl;
+        _selectedImage = coverImageUrl != null ? File(coverImageUrl) : null;
+        _useMarkdown = character.useMarkdown;
+        _hasStatus = character.hasStatus;
+        _statusList = List.from(character.statusList);
+        _backgroundOpacity = character.backgroundOpacity;
+        _userBubbleColor = character.userBubbleColor;
+        _aiBubbleColor = character.aiBubbleColor;
+        _userTextColor = character.userTextColor;
+        _aiTextColor = character.aiTextColor;
+      });
+
+      // 显示成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已导入角色【${character.name}】的设置'),
+          action: SnackBarAction(
+            label: '确定',
+            onPressed: () {},
+          ),
+        ),
+      );
+
+      // 滚动到顶部
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导入失败：$e')),
+      );
+    }
   }
 
   Widget _buildImageSection() {
@@ -275,7 +378,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
           width: double.infinity,
           height: 200,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
           ),
           child: _selectedImage != null || _coverImageUrl != null
@@ -498,65 +601,18 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     );
   }
 
-  Widget _buildStatusSection() {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '状态设置',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Switch(
-                  value: _hasStatus,
-                  onChanged: (value) => setState(() => _hasStatus = value),
-                ),
-              ],
-            ),
-            if (_hasStatus) ...[
-              const SizedBox(height: 16),
-              ..._statusList.map((status) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      title: Text(status.name),
-                      subtitle: Text(status.type == 'text' ? '文本' : '数值'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () =>
-                            setState(() => _statusList.remove(status)),
-                      ),
-                    ),
-                  )),
-              const SizedBox(height: 8),
-              Center(
-                child: FilledButton.tonalIcon(
-                  onPressed: _addStatus,
-                  icon: const Icon(Icons.add),
-                  label: const Text('添加状态'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.character == null ? '新建角色' : '编辑角色'),
         actions: [
+          if (widget.character == null)
+            IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: '导入角色',
+              onPressed: () => _handleImport(context),
+            ),
           TextButton.icon(
             onPressed: _isLoading ? null : _handleSave,
             icon: _isLoading
@@ -613,7 +669,6 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
               onChanged: (value) => setState(() => _useMarkdown = value),
             ),
             _buildColorSection(),
-            _buildStatusSection(),
             const SizedBox(height: 32),
           ],
         ),

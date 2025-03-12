@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import '../widgets/character_card.dart';
 import './edit_character_screen.dart';
 import '../../../data/models/character.dart';
@@ -180,76 +179,6 @@ class _CharacterPoolScreenState extends State<CharacterPoolScreen> {
     }
   }
 
-  void _handleImport(BuildContext context) async {
-    try {
-      // 选择文件
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-        allowMultiple: false,
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      final file = File(result.files.first.path!);
-      if (!await file.exists()) throw '文件不存在';
-
-      // 读取并解码文件内容
-      final encoded = await file.readAsString();
-      final character = CharacterCodec.decode(encoded);
-
-      if (character == null) {
-        throw '无效的角色数据格式';
-      }
-
-      if (!mounted) return;
-
-      // 显示确认对话框
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('导入角色'),
-          content: Text('确定要导入角色【${character.name}】吗？'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('导入'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed != true || !mounted) return;
-
-      // 保存角色数据
-      await _repository.saveCharacter(character);
-      await _loadCharacters();
-
-      if (!mounted) return;
-
-      // 显示成功提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('成功导入角色【${character.name}】'),
-          action: SnackBarAction(
-            label: '确定',
-            onPressed: () {},
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导入失败：$e')),
-      );
-    }
-  }
-
   Future<void> _navigateToChat(Character character) async {
     final config = await _modelConfigRepository.getConfig();
     if (!mounted) return;
@@ -274,125 +203,117 @@ class _CharacterPoolScreenState extends State<CharacterPoolScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+      return const Center(
+        child: CircularProgressIndicator(),
       );
     }
 
     if (!_hasModelConfig) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('角色池'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.settings_outlined,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.settings_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '请先配置模型参数',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                '请先配置模型参数',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '在开始创建角色之前，需要先设置模型参数',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
               ),
-              const SizedBox(height: 8),
-              Text(
-                '在开始创建角色之前，需要先设置模型参数',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _navigateToModelConfig,
-                icon: const Icon(Icons.settings),
-                label: const Text('配置模型'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _navigateToModelConfig,
+              icon: const Icon(Icons.settings),
+              label: const Text('配置模型'),
+            ),
+          ],
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('角色池'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _navigateToModelConfig,
-            tooltip: '模型配置',
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () => _handleImport(context),
-            tooltip: '导入角色',
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _handleEdit(context, null),
-          ),
-        ],
-      ),
-      body: _characters.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.person_outline,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '还没有角色',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+    return Column(
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              _characters.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.person_outline,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '还没有角色',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          FilledButton.icon(
+                            onPressed: () => _handleEdit(context, null),
+                            icon: const Icon(Icons.add),
+                            label: const Text('创建角色'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 0.8,
+                      ),
+                      itemCount: _characters.length,
+                      itemBuilder: (context, index) {
+                        final character = _characters[index];
+                        return CharacterCard(
+                          name: character.name,
+                          description: character.description,
+                          avatarUrl: character.coverImageUrl,
+                          tags: const [], // TODO: 添加标签支持
+                          onEdit: () => _handleEdit(context, character),
+                          onDelete: () => _handleDelete(context, character.id),
+                          onExport: () => _handleExport(context, character),
+                          onTap: () => _navigateToChat(character),
+                        );
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton.icon(
+              if (_characters.isNotEmpty)
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: FloatingActionButton(
                     onPressed: () => _handleEdit(context, null),
-                    icon: const Icon(Icons.add),
-                    label: const Text('创建角色'),
+                    child: const Icon(Icons.add),
                   ),
-                ],
-              ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.8,
-              ),
-              itemCount: _characters.length,
-              itemBuilder: (context, index) {
-                final character = _characters[index];
-                return CharacterCard(
-                  name: character.name,
-                  description: character.description,
-                  avatarUrl: character.coverImageUrl,
-                  tags: const [], // TODO: 添加标签支持
-                  onEdit: () => _handleEdit(context, character),
-                  onDelete: () => _handleDelete(context, character.id),
-                  onExport: () => _handleExport(context, character),
-                  onTap: () => _navigateToChat(character),
-                );
-              },
-            ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

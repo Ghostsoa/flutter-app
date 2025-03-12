@@ -46,20 +46,32 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
       if (mounted) {
         setState(() {
           _availableModels = models;
+          // 过滤掉特殊用途的模型
+          final displayModels = models
+              .where((model) => ![
+                    'gemini-distill',
+                    'gemini-decisync',
+                    'gemini-story'
+                  ].contains(model.name))
+              .toList();
+
           _config = config?.copyWith(
-                model: models.any((m) => m.name == config.model)
+                model: displayModels.any((m) => m.name == config.model)
                     ? config.model
-                    : models.first.name,
+                    : displayModels.first.name,
+                distillationModel: 'gemini-distill', // 固定使用 gemini-distill
               ) ??
               ModelConfig(
-                model: models.first.name,
+                model: displayModels.first.name,
                 temperature: 0.7,
                 topP: 1.0,
                 maxTokens: 2000,
                 presencePenalty: 0.0,
                 frequencyPenalty: 0.0,
                 streamResponse: true,
+                enableDistillation: false,
                 distillationRounds: 20,
+                distillationModel: 'gemini-distill', // 固定使用 gemini-distill
               );
           _isLoading = false;
         });
@@ -223,9 +235,15 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
   }
 
   Widget _buildModelSelector() {
-    final selectedModel = _availableModels.firstWhere(
+    // 过滤掉特殊用途的模型
+    final displayModels = _availableModels
+        .where((model) => !['gemini-distill', 'gemini-decisync', 'gemini-story']
+            .contains(model.name))
+        .toList();
+
+    final selectedModel = displayModels.firstWhere(
       (model) => model.name == _config!.model,
-      orElse: () => _availableModels.first,
+      orElse: () => displayModels.first,
     );
 
     return _buildSection(
@@ -244,7 +262,7 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                 vertical: 16,
               ),
             ),
-            items: _availableModels.map((model) {
+            items: displayModels.map((model) {
               return DropdownMenuItem(
                 value: model.name,
                 child: Text(
@@ -268,8 +286,10 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withOpacity(0.5),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
@@ -524,6 +544,8 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                               setState(() {
                                 _config = _config!.copyWith(
                                   distillationRounds: rounds,
+                                  distillationModel:
+                                      'gemini-distill', // 固定使用 gemini-distill
                                 );
                               });
                             }
@@ -531,29 +553,6 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _config!.distillationModel,
-                    decoration: InputDecoration(
-                      labelText: '蒸馏模型',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: _availableModels.map((model) {
-                      return DropdownMenuItem(
-                        value: model.name,
-                        child: Text(model.name),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _config = _config!.copyWith(distillationModel: value);
-                        });
-                      }
-                    },
                   ),
                 ],
               ),

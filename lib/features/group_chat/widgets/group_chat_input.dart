@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-class ChatInput extends StatelessWidget {
+class GroupChatInput extends StatelessWidget {
   final TextEditingController controller;
   final bool isLoading;
-  final VoidCallback? onSendPressed;
+  final VoidCallback onSend;
 
-  const ChatInput({
+  const GroupChatInput({
     super.key,
     required this.controller,
-    this.isLoading = false,
-    this.onSendPressed,
+    required this.isLoading,
+    required this.onSend,
   });
 
   void _insertParentheses(TextEditingController controller) {
@@ -37,8 +37,6 @@ class ChatInput extends StatelessWidget {
       right: 0,
       bottom: 16 + bottomPadding,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
@@ -62,8 +60,8 @@ class ChatInput extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
-                maxLines: 5,
                 minLines: 1,
+                maxLines: 5,
                 style: const TextStyle(fontSize: 15),
                 decoration: InputDecoration(
                   hintText: '说点什么...',
@@ -86,7 +84,7 @@ class ChatInput extends StatelessWidget {
                     isLoading ? Colors.transparent : theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
-                  onTap: isLoading ? null : onSendPressed,
+                  onTap: isLoading ? null : onSend,
                   borderRadius: BorderRadius.circular(12),
                   child: isLoading
                       ? Center(

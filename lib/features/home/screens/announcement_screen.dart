@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/network/api/lottery_api.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/models/announcement.dart';
-import 'package:intl/intl.dart';
+import 'dart:async';
 
 class AnnouncementScreen extends StatefulWidget {
-  const AnnouncementScreen({super.key});
+  final Announcement announcement;
+
+  const AnnouncementScreen({
+    super.key,
+    required this.announcement,
+  });
 
   @override
   State<AnnouncementScreen> createState() => _AnnouncementScreenState();
@@ -18,14 +24,18 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
   bool _hasMore = true;
   int _currentPage = 1;
   static const _pageSize = 20;
+  int _countdown = 3;
 
   final _scrollController = ScrollController();
+  bool _canClose = false;
+  bool _showConfirmation = false;
 
   @override
   void initState() {
     super.initState();
     _initApi();
     _scrollController.addListener(_onScroll);
+    _startTimer();
   }
 
   @override
@@ -136,137 +146,190 @@ class _AnnouncementScreenState extends State<AnnouncementScreen> {
     await _loadAnnouncements();
   }
 
-  Future<void> _onRefresh() async {
-    await _loadAnnouncements(refresh: true);
+  void _startTimer() {
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        if (_countdown > 0) {
+          _countdown--;
+        } else {
+          _canClose = true;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  void _handleCancel() {
+    SystemNavigator.pop(); // 退出应用
+  }
+
+  void _handleRead() {
+    setState(() {
+      _showConfirmation = true;
+    });
+  }
+
+  void _handleConfirm() {
+    Navigator.of(context).pop(true);
+  }
+
+  void _handleReread() {
+    setState(() {
+      _showConfirmation = false;
+      _canClose = false;
+    });
+    _startTimer();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        title: const Text('系统公告'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _loadAnnouncements(refresh: true),
+    return WillPopScope(
+      onWillPop: () async => false, // 禁止返回键
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
           ),
-        ],
-      ),
-      body: _isLoading && _announcements.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : _announcements.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.notifications_off_outlined,
-                        size: 48,
-                        color: Colors.grey[400],
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.campaign_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '重要公告',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '暂无公告',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
+                    ),
+                    const Spacer(),
+                    if (!_canClose)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: () => _loadAnnouncements(refresh: true),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('重新加载'),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _announcements.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == _announcements.length) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      final announcement = _announcements[index];
-                      return Card(
-                        clipBehavior: Clip.antiAlias,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: theme.colorScheme.outline.withOpacity(0.2),
-                            width: 1,
-                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color:
-                                    theme.colorScheme.primary.withOpacity(0.05),
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: theme.colorScheme.primary
-                                        .withOpacity(0.1),
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      announcement.title,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    DateFormat('MM-dd HH:mm')
-                                        .format(announcement.createdAt),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: theme.colorScheme.onSurface
-                                          .withOpacity(0.6),
-                                    ),
-                                  ),
-                                ],
+                            Text(
+                              '$_countdown',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
                               ),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(
-                                announcement.content,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  height: 1.5,
-                                  color: theme.colorScheme.onSurface,
-                                ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '秒后可操作',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.primary,
                               ),
                             ),
                           ],
                         ),
-                      );
-                    },
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_showConfirmation) ...[
+                        const Text(
+                          '我已阅读并承诺不向开发者提出公告内容中已通知的各种问题',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _handleReread,
+                                child: const Text('重新阅读'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _handleConfirm,
+                                child: const Text('确定'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Text(
+                          widget.announcement.content,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            height: 1.6,
+                          ),
+                        ),
+                        if (_canClose) ...[
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _handleCancel,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: theme.colorScheme.error,
+                                  ),
+                                  child: const Text('取消'),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: _handleRead,
+                                  child: const Text('我已阅读'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ],
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

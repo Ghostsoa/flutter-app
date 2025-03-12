@@ -137,9 +137,14 @@ class CharacterCard extends StatelessWidget {
 
     return Card(
       elevation: 4,
-      shadowColor: Colors.black12,
+      shadowColor: Colors.black26,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: AspectRatio(

@@ -15,7 +15,7 @@ class AuthController extends ChangeNotifier {
   late final SharedPreferences _prefs;
   User? _currentUser;
   bool _isLoading = false;
-  bool _isCheckingVersion = false;
+  final bool _isCheckingVersion = false;
   String _currentVersion = '';
   double? _latestVersion;
   bool _hasNewVersion = false;

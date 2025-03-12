@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../../core/network/api/tts_api.dart';
 import '../../../core/utils/logger.dart';
-import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../../../data/local/shared_prefs/voice_setting_storage.dart';

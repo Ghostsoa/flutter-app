@@ -229,7 +229,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             margin: const EdgeInsets.symmetric(vertical: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withOpacity(0.3),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: Colors.white.withOpacity(0.2),
@@ -244,9 +244,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                   children: [
                     Text(
                       widget.message.content,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 15,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.black,
                         height: 1.5,
                       ),
                     ),

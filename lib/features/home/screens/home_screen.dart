@@ -7,6 +7,7 @@ import '../widgets/feature_card.dart';
 import '../widgets/winners_list.dart';
 import 'announcement_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'announcement_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,14 +49,22 @@ class _HomeScreenState extends State<HomeScreen> {
         currentId: currentId,
       );
 
-      if (result.needUpdate && result.announcement != null) {
+      if ((result.needUpdate || currentId == null) &&
+          result.announcement != null) {
         if (mounted) {
           setState(() => _hasNewAnnouncement = true);
-          // 保存最新公告ID
-          await prefs.setInt(
-              'current_announcement_id', result.announcement!.id);
           // 显示新公告弹窗
-          _showAnnouncementDialog(result.announcement!);
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) =>
+                AnnouncementScreen(announcement: result.announcement!),
+          ).then((confirmed) {
+            // 只有用户确认阅读后才保存ID
+            if (confirmed == true) {
+              prefs.setInt('current_announcement_id', result.announcement!.id);
+            }
+          });
         }
       }
     } catch (e, stackTrace) {
@@ -70,32 +79,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showAnnouncementDialog(Announcement announcement) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.campaign_outlined),
-            const SizedBox(width: 8),
-            Expanded(child: Text(announcement.title)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Text(announcement.content),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openAnnouncementScreen();
-            },
-            child: const Text('查看更多'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('我知道了'),
-          ),
-        ],
-      ),
-    );
+      barrierDismissible: false,
+      builder: (context) => AnnouncementScreen(announcement: announcement),
+    ).then((confirmed) {
+      // 只有用户确认阅读后才更新状态
+      if (confirmed == true) {
+        setState(() => _hasNewAnnouncement = false);
+      }
+    });
   }
 
   Future<void> _handleSignIn() async {
@@ -163,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const AnnouncementScreen(),
+        builder: (context) => const AnnouncementListScreen(),
       ),
     ).then((_) {
       setState(() => _hasNewAnnouncement = false);

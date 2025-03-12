@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../home/screens/home_screen.dart';
-import '../../character_pool/screens/character_pool_screen.dart';
+import '../../character_pool/screens/character_pool_container_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
 
@@ -16,7 +16,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _pages = [
     const HomeScreen(),
-    const CharacterPoolScreen(),
+    const CharacterPoolContainerScreen(),
     const ProfileScreen(),
   ];
 

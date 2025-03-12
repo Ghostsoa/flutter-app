@@ -54,28 +54,6 @@ class TTSApi {
     return md5.convert(utf8.encode(content)).toString();
   }
 
-  // 从缓存中获取音频
-  Future<Uint8List?> _getFromCache(String audioId) async {
-    final file = File('${_cacheDir.path}/$audioId.pcm');
-    if (await file.exists()) {
-      return await file.readAsBytes();
-    }
-    return null;
-  }
-
-  // 保存音频到缓存
-  Future<void> _saveToCache(String audioId, Uint8List audioData) async {
-    final file = File('${_cacheDir.path}/$audioId.pcm');
-    await file.writeAsBytes(audioData);
-
-    // 更新缓存列表
-    final List<String> audioList = _prefs.getStringList(_audioListKey) ?? [];
-    if (!audioList.contains(audioId)) {
-      audioList.add(audioId);
-      await _prefs.setStringList(_audioListKey, audioList);
-    }
-  }
-
   // 清理过期缓存
   Future<void> _cleanupCache() async {
     final setting = await VoiceSettingStorage.getCurrentSetting();

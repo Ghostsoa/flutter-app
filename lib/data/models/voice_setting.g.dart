@@ -12,7 +12,7 @@ VoiceSetting _$VoiceSettingFromJson(Map<String, dynamic> json) => VoiceSetting(
       vol: (json['vol'] as num?)?.toDouble() ?? 1.0,
       pitch: (json['pitch'] as num?)?.toInt() ?? 0,
       emotion: json['emotion'] as String? ?? 'happy',
-      cacheLimit: (json['cache_limit'] as num?)?.toInt() ?? 10,
+      cacheLimit: (json['cache_limit'] as num?)?.toInt() ?? 20,
     );
 
 Map<String, dynamic> _$VoiceSettingToJson(VoiceSetting instance) =>
