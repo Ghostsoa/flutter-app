@@ -16,7 +16,7 @@ class DioClient {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       headers: {
-        'X-Client-Version': '3.0',
+        'X-Client-Version': '3.1',
         'Content-Type': 'application/json',
       },
       validateStatus: (status) => status != null && status < 500,
@@ -78,10 +78,12 @@ class DioClient {
   Future<Response> get(
     String path, {
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     return _dio.get(
       path,
       queryParameters: queryParameters,
+      options: options,
     );
   }
 

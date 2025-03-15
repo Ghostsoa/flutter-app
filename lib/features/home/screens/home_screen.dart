@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/network/api/lottery_api.dart';
 import '../../../core/utils/logger.dart';
-import '../../../data/models/announcement.dart';
 import '../widgets/daily_check_in_card.dart';
 import '../widgets/feature_card.dart';
 import '../widgets/winners_list.dart';
@@ -74,19 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
         stackTrace: stackTrace,
       );
     }
-  }
-
-  void _showAnnouncementDialog(Announcement announcement) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AnnouncementScreen(announcement: announcement),
-    ).then((confirmed) {
-      // 只有用户确认阅读后才更新状态
-      if (confirmed == true) {
-        setState(() => _hasNewAnnouncement = false);
-      }
-    });
   }
 
   Future<void> _handleSignIn() async {

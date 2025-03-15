@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import '../../../data/models/character.dart';
+import '../../../core/network/api/role_play_api.dart';
 
-class CharacterCard extends StatelessWidget {
-  final String name;
-  final String description;
-  final String? avatarUrl;
-  final List<String> tags;
+class CharacterCard extends StatefulWidget {
+  final Character character;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onExport;
@@ -13,15 +12,153 @@ class CharacterCard extends StatelessWidget {
 
   const CharacterCard({
     super.key,
-    required this.name,
-    required this.description,
-    this.avatarUrl,
-    required this.tags,
+    required this.character,
     this.onEdit,
     this.onDelete,
     this.onExport,
     this.onTap,
   });
+
+  @override
+  State<CharacterCard> createState() => _CharacterCardState();
+}
+
+class _CharacterCardState extends State<CharacterCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _dotsAnimationController;
+  late final List<Animation<double>> _dotsAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    _dotsAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    // 创建三个点的动画
+    _dotsAnimations = List.generate(3, (index) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _dotsAnimationController,
+          curve: Interval(
+            index * 0.2,
+            0.6 + index * 0.2,
+            curve: Curves.easeInOut,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _dotsAnimationController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildLoadingDots() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '上传中',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          ...List.generate(3, (index) {
+            return AnimatedBuilder(
+              animation: _dotsAnimations[index],
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, -4 * _dotsAnimations[index].value),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(
+                      '.',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleShare(BuildContext context) async {
+    Navigator.pop(context); // 关闭菜单
+
+    // 显示上传对话框
+    if (!context.mounted) return;
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        dialogContext = context;
+        return Dialog(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: _buildLoadingDots(),
+        );
+      },
+    );
+
+    // 启动动画
+    _dotsAnimationController.repeat();
+
+    try {
+      final api = await RolePlayApi.getInstance();
+      final result = await api.uploadCharacter(widget.character);
+
+      // 立即停止动画
+      _dotsAnimationController.stop();
+      _dotsAnimationController.reset();
+
+      // 关闭对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享成功：${result['message']}')),
+      );
+    } catch (e) {
+      // 立即停止动画
+      _dotsAnimationController.stop();
+      _dotsAnimationController.reset();
+
+      // 关闭对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败：$e')),
+      );
+    }
+  }
 
   void _showMoreMenu(BuildContext context) {
     final theme = Theme.of(context);
@@ -44,7 +181,7 @@ class CharacterCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                name,
+                widget.character.name,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
@@ -69,7 +206,7 @@ class CharacterCard extends StatelessWidget {
               ),
               onTap: () {
                 Navigator.pop(context);
-                onEdit?.call();
+                widget.onEdit?.call();
               },
             ),
             ListTile(
@@ -79,7 +216,7 @@ class CharacterCard extends StatelessWidget {
               iconColor: Colors.red,
               onTap: () {
                 Navigator.pop(context);
-                onDelete?.call();
+                widget.onDelete?.call();
               },
             ),
             ListTile(
@@ -101,8 +238,27 @@ class CharacterCard extends StatelessWidget {
               ),
               onTap: () {
                 Navigator.pop(context);
-                onExport?.call();
+                widget.onExport?.call();
               },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.share_outlined,
+                color: theme.colorScheme.onSurface,
+              ),
+              title: Text(
+                '分享到大厅',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              subtitle: Text(
+                '分享角色到大厅供其他用户使用',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              onTap: () => _handleShare(context),
             ),
 
             // 底部取消按钮
@@ -150,20 +306,58 @@ class CharacterCard extends StatelessWidget {
       child: AspectRatio(
         aspectRatio: 0.75,
         child: InkWell(
-          onTap: onTap,
+          onTap: widget.onTap,
           child: Stack(
             fit: StackFit.expand,
             children: [
               // 背景图或渐变
-              if (avatarUrl != null)
-                avatarUrl!.startsWith('/')
+              if (widget.character.coverImageUrl != null)
+                widget.character.coverImageUrl!.startsWith('/')
                     ? Image.file(
-                        File(avatarUrl!),
+                        File(widget.character.coverImageUrl!),
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  theme.colorScheme.primary.withOpacity(0.2),
+                                  theme.colorScheme.secondary.withOpacity(0.3),
+                                ],
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              size: 48,
+                              color: theme.colorScheme.error,
+                            ),
+                          );
+                        },
                       )
                     : Image.network(
-                        avatarUrl!,
+                        widget.character.coverImageUrl!,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  theme.colorScheme.primary.withOpacity(0.2),
+                                  theme.colorScheme.secondary.withOpacity(0.3),
+                                ],
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              size: 48,
+                              color: theme.colorScheme.error,
+                            ),
+                          );
+                        },
                       )
               else
                 Container(
@@ -177,10 +371,10 @@ class CharacterCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.image_outlined,
                     size: 64,
-                    color: Colors.white24,
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.3),
                   ),
                 ),
               // 渐变遮罩
@@ -208,7 +402,7 @@ class CharacterCard extends StatelessWidget {
                 right: 12,
                 bottom: 12,
                 child: Text(
-                  name,
+                  widget.character.name,
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

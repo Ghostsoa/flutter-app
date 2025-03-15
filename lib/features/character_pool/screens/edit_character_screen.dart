@@ -46,6 +46,19 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
 
   final _scrollController = ScrollController();
 
+  // 模型配置
+  String _selectedModel = 'gemini-2.0-flash';
+  bool _useAdvancedSettings = false;
+  double _temperature = 0.7;
+  double _topP = 1.0;
+  double _presencePenalty = 0.0;
+  double _frequencyPenalty = 0.0;
+  int _maxTokens = 2000;
+  bool _streamResponse = true;
+  bool _enableDistillation = false;
+  int _distillationRounds = 20;
+  String _distillationModel = 'gemini-distill';
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +78,17 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
       _aiBubbleColor = widget.character!.aiBubbleColor;
       _userTextColor = widget.character!.userTextColor;
       _aiTextColor = widget.character!.aiTextColor;
+      _selectedModel = widget.character!.model;
+      _useAdvancedSettings = widget.character!.useAdvancedSettings;
+      _temperature = widget.character!.temperature;
+      _topP = widget.character!.topP;
+      _presencePenalty = widget.character!.presencePenalty;
+      _frequencyPenalty = widget.character!.frequencyPenalty;
+      _maxTokens = widget.character!.maxTokens;
+      _streamResponse = widget.character!.streamResponse;
+      _enableDistillation = widget.character!.enableDistillation;
+      _distillationRounds = widget.character!.distillationRounds;
+      _distillationModel = widget.character!.distillationModel;
     }
   }
 
@@ -253,11 +277,22 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
         aiBubbleColor: _aiBubbleColor,
         userTextColor: _userTextColor,
         aiTextColor: _aiTextColor,
+        model: _selectedModel,
+        useAdvancedSettings: _useAdvancedSettings,
+        temperature: _temperature,
+        topP: _topP,
+        presencePenalty: _presencePenalty,
+        frequencyPenalty: _frequencyPenalty,
+        maxTokens: _maxTokens,
+        streamResponse: _streamResponse,
+        enableDistillation: _enableDistillation,
+        distillationRounds: _distillationRounds,
+        distillationModel: _distillationModel,
       );
 
-      final savedCharacter = await _repository.saveCharacter(character);
+      await _repository.saveCharacter(character);
       if (mounted) {
-        Navigator.of(context).pop(savedCharacter);
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -288,22 +323,13 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
 
       // 读取并解码文件内容
       final encoded = await file.readAsString();
-      final character = CharacterCodec.decode(encoded);
+      final character = await CharacterCodec.decode(encoded);
 
       if (character == null) {
         throw '无效的角色数据格式';
       }
 
       if (!mounted) return;
-
-      // 如果有图片数据，需要保存图片
-      String? coverImageUrl;
-      if (character.coverImageUrl != null) {
-        final imageFile = File(character.coverImageUrl!);
-        if (await imageFile.exists()) {
-          coverImageUrl = await _processAndSaveImage(imageFile);
-        }
-      }
 
       // 显示确认对话框
       final confirmed = await showDialog<bool>(
@@ -332,8 +358,10 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
         _descriptionController.text = character.description;
         _userSettingController.text = character.userSetting ?? '';
         _greetingController.text = character.greeting ?? '';
-        _coverImageUrl = coverImageUrl;
-        _selectedImage = coverImageUrl != null ? File(coverImageUrl) : null;
+        _coverImageUrl = character.coverImageUrl;
+        _selectedImage = character.coverImageUrl != null
+            ? File(character.coverImageUrl!)
+            : null;
         _useMarkdown = character.useMarkdown;
         _hasStatus = character.hasStatus;
         _statusList = List.from(character.statusList);
@@ -342,6 +370,17 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
         _aiBubbleColor = character.aiBubbleColor;
         _userTextColor = character.userTextColor;
         _aiTextColor = character.aiTextColor;
+        _selectedModel = character.model;
+        _useAdvancedSettings = character.useAdvancedSettings;
+        _temperature = character.temperature;
+        _topP = character.topP;
+        _presencePenalty = character.presencePenalty;
+        _frequencyPenalty = character.frequencyPenalty;
+        _maxTokens = character.maxTokens;
+        _streamResponse = character.streamResponse;
+        _enableDistillation = character.enableDistillation;
+        _distillationRounds = character.distillationRounds;
+        _distillationModel = character.distillationModel;
       });
 
       // 显示成功提示
@@ -601,6 +640,350 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     );
   }
 
+  Widget _buildSlider({
+    required String label,
+    required String description,
+    required double value,
+    required double min,
+    required double max,
+    int? divisions,
+    required ValueChanged<double> onChanged,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                value.toStringAsFixed(1),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor: theme.colorScheme.primary.withOpacity(0.1),
+            thumbColor: theme.colorScheme.primary,
+            overlayColor: theme.colorScheme.primary.withOpacity(0.1),
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModelSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '模型设置',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: _selectedModel,
+          decoration: const InputDecoration(
+            labelText: '选择模型',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.auto_awesome_outlined),
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'gemini-2.0-flash',
+              child: Text('Gemini 2.0 Flash'),
+            ),
+            DropdownMenuItem(
+              value: 'gemini-2.0-flash-exp',
+              child: Text('Gemini 2.0 Flash EXP'),
+            ),
+            DropdownMenuItem(
+              value: 'gemini-2-lite',
+              child: Text('Gemini 2 Lite'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedModel = value;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 24),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: const Text('启用高级设置'),
+                subtitle: const Text('调整模型参数以获得更好的效果'),
+                value: _useAdvancedSettings,
+                onChanged: (value) {
+                  setState(() {
+                    _useAdvancedSettings = value;
+                  });
+                },
+              ),
+              if (_useAdvancedSettings) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _buildSlider(
+                        label: 'Temperature',
+                        description:
+                            '控制输出的随机性。较高的值会使输出更加随机和创造性，较低的值会使输出更加集中和确定性。',
+                        value: _temperature,
+                        min: 0,
+                        max: 2,
+                        divisions: 20,
+                        onChanged: (value) {
+                          setState(() {
+                            _temperature = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSlider(
+                        label: 'Top P',
+                        description: '控制输出的多样性。较高的值会保留更多的可能性，较低的值会使输出更加集中。',
+                        value: _topP,
+                        min: 0,
+                        max: 1,
+                        divisions: 10,
+                        onChanged: (value) {
+                          setState(() {
+                            _topP = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSlider(
+                        label: '最大Tokens',
+                        description: '控制单次输出的最大长度。',
+                        value: _maxTokens.toDouble(),
+                        min: 100,
+                        max: 4000,
+                        divisions: 39,
+                        onChanged: (value) {
+                          setState(() {
+                            _maxTokens = value.round();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSlider(
+                        label: '重复惩罚',
+                        description: '控制模型避免重复内容的程度。较高的值会使模型更倾向于生成新的内容。',
+                        value: _frequencyPenalty,
+                        min: -2,
+                        max: 2,
+                        divisions: 40,
+                        onChanged: (value) {
+                          setState(() {
+                            _frequencyPenalty = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSlider(
+                        label: '主题惩罚',
+                        description: '控制模型保持主题的程度。较高的值会使模型更倾向于探索新的主题。',
+                        value: _presencePenalty,
+                        min: -2,
+                        max: 2,
+                        divisions: 40,
+                        onChanged: (value) {
+                          setState(() {
+                            _presencePenalty = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: const Text('流式响应'),
+                subtitle: const Text('开启后可以实时看到模型的输出'),
+                value: _streamResponse,
+                onChanged: (value) {
+                  setState(() {
+                    _streamResponse = value;
+                  });
+                },
+              ),
+              const Divider(height: 1),
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    const Text('启用蒸馏'),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Beta',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: const Text('通过多轮对话优化输出质量'),
+                value: _enableDistillation,
+                onChanged: (value) {
+                  setState(() {
+                    _enableDistillation = value;
+                  });
+                },
+              ),
+              if (_enableDistillation) ...[
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '蒸馏轮数',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '进行多少轮优化，轮数越多效果越好，但耗时也越长。',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          SizedBox(
+                            width: 80,
+                            child: TextFormField(
+                              initialValue: _distillationRounds.toString(),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                                isDense: true,
+                                hintText: '20',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                              onChanged: (value) {
+                                final rounds = int.tryParse(value);
+                                if (rounds != null &&
+                                    rounds > 0 &&
+                                    rounds <= 100) {
+                                  setState(() {
+                                    _distillationRounds = rounds;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -669,6 +1052,8 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
               onChanged: (value) => setState(() => _useMarkdown = value),
             ),
             _buildColorSection(),
+            const SizedBox(height: 32),
+            _buildModelSection(),
             const SizedBox(height: 32),
           ],
         ),

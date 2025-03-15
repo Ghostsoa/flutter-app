@@ -13,6 +13,7 @@ import '../../../core/network/api/card_key_api.dart';
 import '../../../core/network/api/version_api.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../../features/support/screens/support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -1100,6 +1101,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _buildActionTile(
               theme,
+              icon: Icons.support_agent_outlined,
+              title: '智能AI客服',
+              onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const SupportScreen(),
+                ));
+              },
+            ),
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            _buildActionTile(
+              theme,
               icon: Icons.help_outline,
               title: '官方讨论与反馈',
               onTap: _showHelpDialog,
@@ -1116,6 +1128,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               },
+            ),
+            Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
+            _buildActionTile(
+              theme,
+              icon: Icons.palette_outlined,
+              title: '主题颜色',
+              onTap: () => _showThemeColorPicker(theme),
             ),
             Divider(color: theme.colorScheme.outline.withOpacity(0.1)),
             _buildActionTile(
@@ -1183,6 +1202,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Icon(Icons.chevron_right,
               color: theme.colorScheme.primary.withOpacity(0.5)),
       onTap: onTap,
+    );
+  }
+
+  void _showThemeColorPicker(ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('选择主题色'),
+        content: SingleChildScrollView(
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildColorOption(Colors.blue, '默认蓝', theme),
+              _buildColorOption(const Color(0xFF80CBC4), '薄荷绿', theme),
+              _buildColorOption(const Color(0xFFFFB74D), '活力橙', theme),
+              _buildColorOption(const Color(0xFFFF8A80), '珊瑚红', theme),
+              _buildColorOption(const Color(0xFF9575CD), '梦幻紫', theme),
+              _buildColorOption(const Color(0xFF4CAF50), '自然绿', theme),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorOption(Color color, String label, ThemeData theme) {
+    final provider = ThemeProvider();
+    final isSelected = color.value == provider.themeColor.value;
+
+    return GestureDetector(
+      onTap: () {
+        provider.setThemeColor(color);
+        Navigator.of(context).pop();
+      },
+      child: Column(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color:
+                    isSelected ? theme.colorScheme.primary : Colors.transparent,
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

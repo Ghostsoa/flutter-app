@@ -15,10 +15,12 @@ import 'package:file_picker/file_picker.dart';
 
 class CreateGroupChatScreen extends StatefulWidget {
   final GroupChat? group;
+  final String? importFilePath;
 
   const CreateGroupChatScreen({
     super.key,
     this.group,
+    this.importFilePath,
   });
 
   @override
@@ -301,6 +303,8 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                             width: 64,
                             height: 64,
                             fit: BoxFit.cover,
+                            gaplessPlayback:
+                                role.avatarUrl!.toLowerCase().endsWith('.gif'),
                             errorBuilder: (context, error, stackTrace) {
                               return Icon(
                                 Icons.person_outline,
@@ -508,76 +512,161 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
     );
   }
 
+  Future<String?> _saveAvatarData(String base64Data, String dirPath) async {
+    try {
+      // 处理可能包含的 base64 前缀
+      final base64String =
+          base64Data.contains(',') ? base64Data.split(',')[1] : base64Data;
+      final bytes = base64Decode(base64String);
+
+      // 检测图片格式
+      final extension = _detectImageFormat(bytes);
+      final fileName = '${const Uuid().v4()}.$extension';
+      final avatarPath = path.join(dirPath, fileName);
+
+      // 将数据写入文件
+      await File(avatarPath).writeAsBytes(bytes);
+      return avatarPath;
+    } catch (e) {
+      debugPrint('保存角色头像失败: $e');
+      return null;
+    }
+  }
+
   Future<void> _handleImport() async {
     try {
-      setState(() => _isLoading = true);
-
+      // 选择文件
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
-        allowMultiple: false,
       );
 
-      if (result == null || result.files.isEmpty) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      if (result == null || result.files.isEmpty) return;
 
+      // 读取文件内容
       final file = File(result.files.first.path!);
-      if (!await file.exists()) throw '文件不存在';
-
       final jsonString = await file.readAsString();
       final jsonData = jsonDecode(jsonString);
 
-      if (!jsonData.containsKey('roles') || !jsonData.containsKey('name')) {
-        throw '无效的群聊数据格式';
+      // 获取存储目录
+      final appDir = await getApplicationDocumentsDirectory();
+      final groupsDir = Directory(path.join(appDir.path, 'groups'));
+      if (!await groupsDir.exists()) {
+        await groupsDir.create(recursive: true);
       }
 
-      _roles.clear();
+      if (!mounted) return;
 
-      _nameController.text = jsonData['name'];
-      _settingController.text = jsonData['setting'] ?? '';
-      _greetingController.text = jsonData['greeting'] ?? '';
-      _useMarkdown = jsonData['useMarkdown'] ?? false;
-      _showDecisionProcess = jsonData['showDecisionProcess'] ?? false;
-      _streamResponse = jsonData['streamResponse'] ?? true;
-      _enableDistillation = jsonData['enableDistillation'] ?? false;
-      _distillationRounds = jsonData['distillationRounds'] ?? 20;
+      // 显示确认对话框
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('导入群聊'),
+          content: Text('是否要导入群聊【${jsonData['name']}】？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('导入'),
+            ),
+          ],
+        ),
+      );
 
-      if (jsonData['backgroundImageData'] != null) {
-        await _loadBackgroundImage(jsonData['backgroundImageData']);
-      }
+      if (confirmed != true || !mounted) return;
 
-      final rolesList = jsonData['roles'] as List;
-      for (final roleData in rolesList) {
-        final role = GroupChatRole.fromJson(roleData);
-        if (role.avatarUrl != null) {
-          final bytes = base64Decode(role.avatarUrl!);
-          final tempDir = await getTemporaryDirectory();
+      // 填充表单数据
+      setState(() {
+        _nameController.text = jsonData['name'];
+        _settingController.text = jsonData['setting'] ?? '';
+        _greetingController.text = jsonData['greeting'] ?? '';
+        _showDecisionProcess = jsonData['showDecisionProcess'] ?? false;
+        _streamResponse = jsonData['streamResponse'] ?? true;
+        _enableDistillation = jsonData['enableDistillation'] ?? false;
+        _distillationRounds = jsonData['distillationRounds'] ?? 20;
+
+        // 清空现有角色列表
+        _roles.clear();
+      });
+
+      // 添加角色
+      for (final roleData in jsonData['roles']) {
+        String? avatarUrl;
+
+        // 如果有avatarData，优先使用它
+        if (roleData['avatarData'] != null) {
+          final bytes = base64Decode(roleData['avatarData']);
           final extension = _detectImageFormat(bytes);
-          final tempFile =
-              File('${tempDir.path}/${const Uuid().v4()}.$extension');
-          await tempFile.writeAsBytes(bytes);
-          _roles.add(role.copyWith(avatarUrl: tempFile.path));
-        } else {
-          _roles.add(role);
+          final fileName = '${const Uuid().v4()}.$extension';
+          final avatarPath = path.join(groupsDir.path, fileName);
+          await File(avatarPath).writeAsBytes(bytes);
+          avatarUrl = avatarPath;
+        } else if (roleData['avatarUrl'] != null) {
+          // 如果有 avatarUrl 且是 base64 数据
+          final base64Data = roleData['avatarUrl'] as String;
+          if (base64Data.contains('base64,') || base64Data.contains('/9j/')) {
+            final bytes = base64Decode(base64Data.contains(',')
+                ? base64Data.split(',')[1]
+                : base64Data);
+            final extension = _detectImageFormat(bytes);
+            final fileName = '${const Uuid().v4()}.$extension';
+            final avatarPath = path.join(groupsDir.path, fileName);
+            await File(avatarPath).writeAsBytes(bytes);
+            avatarUrl = avatarPath;
+          }
         }
+
+        // 处理 modelConfig
+        final modelConfig =
+            roleData['modelConfig'] as Map<String, dynamic>? ?? {};
+        final role = GroupChatRole(
+          id: const Uuid().v4(),
+          name: roleData['name'],
+          description: roleData['description'],
+          avatarUrl: avatarUrl,
+          model: modelConfig['model'] ?? 'gemini-2.0-flash',
+          useAdvancedSettings: modelConfig['useAdvancedSettings'] ?? false,
+          temperature: modelConfig['temperature']?.toDouble() ?? 0.7,
+          topP: modelConfig['topP']?.toDouble() ?? 1.0,
+          presencePenalty: modelConfig['presencePenalty']?.toDouble() ?? 0.0,
+          frequencyPenalty: modelConfig['frequencyPenalty']?.toDouble() ?? 0.0,
+          maxTokens: modelConfig['maxTokens'] ?? 2000,
+        );
+
+        setState(() {
+          _roles.add(role);
+        });
       }
 
       setState(() {
         _selectedRole = _roles.isNotEmpty ? _roles.first : null;
-        _updateRoleControllers();
       });
-    } catch (e) {
+
+      // 处理背景图片
+      if (jsonData['backgroundImageData'] != null) {
+        final savedPath = await _saveAvatarData(
+            jsonData['backgroundImageData'], groupsDir.path);
+        if (savedPath != null && mounted) {
+          setState(() {
+            _selectedImage = File(savedPath);
+          });
+        }
+      }
+
+      // 显示成功提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('导入失败：$e')),
+          const SnackBar(content: Text('群聊导入成功')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导入失败：$e')),
+      );
     }
   }
 
@@ -854,134 +943,91 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                                     setState(() => _streamResponse = value),
                               ),
                               const Divider(height: 1),
-                              SwitchListTile(
-                                title: Row(
-                                  children: [
-                                    const Text('上下文蒸馏'),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            theme.colorScheme.primaryContainer,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        'Beta',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: theme
-                                              .colorScheme.onPrimaryContainer,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                subtitle: const Text('通过蒸馏对历史记录总结，减少token消耗'),
-                                value: _enableDistillation,
-                                onChanged: (value) =>
-                                    setState(() => _enableDistillation = value),
-                                shape: _enableDistillation
-                                    ? null
-                                    : const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.vertical(
-                                          bottom: Radius.circular(12),
-                                        ),
-                                      ),
-                              ),
-                              if (_enableDistillation) ...[
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              '蒸馏轮数',
-                                              style: TextStyle(
-                                                fontSize: 14,
+                              Column(
+                                children: [
+                                  SwitchListTile(
+                                    title: const Text('启用蒸馏'),
+                                    subtitle: const Text('通过多轮对话优化输出质量'),
+                                    value: _enableDistillation,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _enableDistillation = value;
+                                      });
+                                    },
+                                  ),
+                                  if (_enableDistillation)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          16, 8, 16, 16),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            '蒸馏轮数',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '进行多少轮优化，轮数越多效果越好，但耗时也越长。',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          SizedBox(
+                                            width: 80,
+                                            child: TextField(
+                                              controller: TextEditingController(
+                                                text: _distillationRounds
+                                                    .toString(),
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              decoration: InputDecoration(
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 12,
+                                                ),
+                                                isDense: true,
+                                                filled: true,
+                                                fillColor: theme
+                                                    .colorScheme.surfaceVariant
+                                                    .withOpacity(0.3),
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 15,
                                                 fontWeight: FontWeight.w500,
                                               ),
+                                              textAlign: TextAlign.center,
+                                              onChanged: (value) {
+                                                final rounds =
+                                                    int.tryParse(value);
+                                                if (rounds != null &&
+                                                    rounds > 0 &&
+                                                    rounds <= 100) {
+                                                  setState(() {
+                                                    _distillationRounds =
+                                                        rounds;
+                                                  });
+                                                }
+                                              },
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '进行多少轮优化，轮数越多效果越好，但耗时也越长',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: theme.colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      SizedBox(
-                                        width: 80,
-                                        child: TextFormField(
-                                          initialValue:
-                                              _distillationRounds.toString(),
-                                          keyboardType: TextInputType.number,
-                                          decoration: InputDecoration(
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              borderSide: BorderSide(
-                                                color: theme.colorScheme.outline
-                                                    .withOpacity(0.2),
-                                              ),
-                                            ),
-                                            enabledBorder: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              borderSide: BorderSide(
-                                                color: theme.colorScheme.outline
-                                                    .withOpacity(0.2),
-                                              ),
-                                            ),
-                                            focusedBorder: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              borderSide: BorderSide(
-                                                color:
-                                                    theme.colorScheme.primary,
-                                              ),
-                                            ),
-                                            contentPadding:
-                                                const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 12,
-                                            ),
-                                            isDense: true,
-                                            filled: true,
-                                            fillColor: theme
-                                                .colorScheme.surfaceVariant
-                                                .withOpacity(0.3),
                                           ),
-                                          textAlign: TextAlign.center,
-                                          onChanged: (value) {
-                                            final rounds = int.tryParse(value);
-                                            if (rounds != null && rounds > 0) {
-                                              setState(() =>
-                                                  _distillationRounds = rounds);
-                                            }
-                                          },
-                                        ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -1096,23 +1142,31 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
           if (_selectedRole == null)
             SliverFillRemaining(
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.person_add_outlined,
-                      size: 64,
-                      color: theme.colorScheme.primary.withOpacity(0.2),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '点击添加按钮创建角色',
-                      style: TextStyle(
-                        fontSize: 16,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 64,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Text(
+                        '还没有角色',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: _showAddRoleDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text('添加角色'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -1152,12 +1206,31 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                           ),
                           child: _selectedRole!.avatarUrl != null
                               ? ClipOval(
-                                  child: Image.file(
-                                    File(_selectedRole!.avatarUrl!),
-                                    width: 120,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                  ),
+                                  child: _selectedRole!.avatarUrl!
+                                          .toLowerCase()
+                                          .endsWith('.gif')
+                                      ? Image.file(
+                                          File(_selectedRole!.avatarUrl!),
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Icon(
+                                              Icons.person_outline,
+                                              size: 48,
+                                              color: theme
+                                                  .colorScheme.onSurfaceVariant,
+                                            );
+                                          },
+                                        )
+                                      : Image.file(
+                                          File(_selectedRole!.avatarUrl!),
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                        ),
                                 )
                               : Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1199,7 +1272,8 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _roleDescriptionController,
-                    maxLines: 3,
+                    minLines: 3,
+                    maxLines: null,
                     decoration: const InputDecoration(
                       labelText: '角色描述',
                       border: OutlineInputBorder(),

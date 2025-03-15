@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import './character_pool_screen.dart';
-import './model_config_screen.dart';
 import './group_chat_list_screen.dart';
 
 class CharacterPoolContainerScreen extends StatefulWidget {
@@ -18,6 +17,7 @@ class _CharacterPoolContainerScreenState
   bool _isGroupChat = false;
   late final PageController _pageController;
   bool _isInitialized = false;
+  final _refreshNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -42,20 +42,13 @@ class _CharacterPoolContainerScreenState
     if (_isInitialized) {
       _pageController.dispose();
     }
+    _refreshNotifier.dispose();
     super.dispose();
   }
 
   Future<void> _saveTab(bool isGroupChat) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_tabKey, isGroupChat);
-  }
-
-  void _navigateToModelConfig() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const ModelConfigScreen(),
-      ),
-    );
   }
 
   void _handlePageChanged(int page) {
@@ -78,6 +71,37 @@ class _CharacterPoolContainerScreenState
     _saveTab(isGroupChat);
   }
 
+  Widget _buildTabButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isSelected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
@@ -93,11 +117,6 @@ class _CharacterPoolContainerScreenState
       appBar: AppBar(
         title: const Text('角色池'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: '模型配置',
-            onPressed: _navigateToModelConfig,
-          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             height: 36,
@@ -124,61 +143,19 @@ class _CharacterPoolContainerScreenState
           ),
         ],
       ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: _handlePageChanged,
-        children: const [
-          CharacterPoolScreen(key: ValueKey('normal')),
-          GroupChatListScreen(key: ValueKey('group_chat')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabButton({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      width: 72,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                label == '普通' ? Icons.person_outline : Icons.groups_outlined,
-                size: 16,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context).colorScheme.onSurface,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
+      body: ValueListenableBuilder<bool>(
+        valueListenable: _refreshNotifier,
+        builder: (context, _, child) => PageView(
+          controller: _pageController,
+          onPageChanged: _handlePageChanged,
+          children: [
+            CharacterPoolScreen(
+              key: ValueKey('normal_${_refreshNotifier.value}'),
+            ),
+            GroupChatListScreen(
+              key: ValueKey('group_chat_${_refreshNotifier.value}'),
+            ),
+          ],
         ),
       ),
     );

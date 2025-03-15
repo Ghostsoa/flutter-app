@@ -5,6 +5,7 @@ import '../../../data/repositories/group_chat_repository.dart';
 import '../../../data/models/group_chat.dart';
 import 'package:file_picker/file_picker.dart';
 import './group_chat_detail_screen.dart';
+import '../../../core/network/api/role_play_api.dart';
 
 class GroupChatListScreen extends StatefulWidget {
   const GroupChatListScreen({super.key});
@@ -13,15 +14,44 @@ class GroupChatListScreen extends StatefulWidget {
   State<GroupChatListScreen> createState() => _GroupChatListScreenState();
 }
 
-class _GroupChatListScreenState extends State<GroupChatListScreen> {
+class _GroupChatListScreenState extends State<GroupChatListScreen>
+    with SingleTickerProviderStateMixin {
   final List<GroupChat> _groups = [];
   late final GroupChatRepository _repository;
   bool _isLoading = true;
+  late final AnimationController _dotsAnimationController;
+  late final List<Animation<double>> _dotsAnimations;
 
   @override
   void initState() {
     super.initState();
     _initRepository();
+
+    // 初始化动画控制器
+    _dotsAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    // 创建三个点的动画
+    _dotsAnimations = List.generate(3, (index) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _dotsAnimationController,
+          curve: Interval(
+            index * 0.2,
+            0.6 + index * 0.2,
+            curve: Curves.easeInOut,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _dotsAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _initRepository() async {
@@ -144,6 +174,110 @@ class _GroupChatListScreenState extends State<GroupChatListScreen> {
           );
         }
       }
+    }
+  }
+
+  Widget _buildLoadingDots() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '上传中',
+            style: TextStyle(
+              fontSize: 16,
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          ...List.generate(3, (index) {
+            return AnimatedBuilder(
+              animation: _dotsAnimations[index],
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, -4 * _dotsAnimations[index].value),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(
+                      '.',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleShare(BuildContext context, GroupChat group) async {
+    Navigator.pop(context); // 关闭菜单
+
+    // 显示上传对话框
+    if (!context.mounted) return;
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        dialogContext = context;
+        return Dialog(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: _buildLoadingDots(),
+        );
+      },
+    );
+
+    // 启动动画
+    _dotsAnimationController.repeat();
+
+    try {
+      final api = await RolePlayApi.getInstance();
+      final result = await api.uploadGroupChat(group);
+
+      // 立即停止动画
+      _dotsAnimationController.stop();
+      _dotsAnimationController.reset();
+
+      // 关闭对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享成功：${result['message']}')),
+      );
+    } catch (e) {
+      // 立即停止动画
+      _dotsAnimationController.stop();
+      _dotsAnimationController.reset();
+
+      // 关闭对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败：$e')),
+      );
     }
   }
 
@@ -393,6 +527,26 @@ class _GroupChatListScreenState extends State<GroupChatListScreen> {
                                 _exportGroup(group);
                               },
                             ),
+                            ListTile(
+                              leading: Icon(
+                                Icons.share_outlined,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              title: Text(
+                                '分享到大厅',
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '分享群聊到大厅供其他用户使用',
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.6),
+                                ),
+                              ),
+                              onTap: () => _handleShare(context, group),
+                            ),
                             const SizedBox(height: 8),
                             SafeArea(
                               child: Padding(
@@ -487,6 +641,7 @@ class _GroupChatListScreenState extends State<GroupChatListScreen> {
             right: 16,
             bottom: 16,
             child: FloatingActionButton(
+              heroTag: 'group_chat_list_fab',
               onPressed: _navigateToCreateGroup,
               child: const Icon(Icons.add),
             ),

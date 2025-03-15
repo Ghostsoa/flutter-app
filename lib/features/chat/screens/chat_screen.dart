@@ -5,7 +5,6 @@ import '../../../data/models/model_config.dart';
 import '../../../data/models/chat_archive.dart';
 import '../../../data/models/chat_message.dart';
 import '../../../data/repositories/character_repository.dart';
-import '../../../data/repositories/model_config_repository.dart';
 import '../../../data/repositories/chat_archive_repository.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_input.dart';
@@ -40,7 +39,6 @@ class _ChatScreenState extends State<ChatScreen> {
   late Character _character;
   late ModelConfig _modelConfig;
   late final CharacterRepository _characterRepository;
-  late final ModelConfigRepository _modelConfigRepository;
   late final ChatArchiveManager _archiveManager;
   late final ChatMessageHandler _messageHandler;
   late final ChatAudioPlayerManager _audioPlayerManager;
@@ -59,17 +57,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _initServices() async {
     _characterRepository = await CharacterRepository.create();
-    _modelConfigRepository = await ModelConfigRepository.create();
     final archiveRepository = await ChatArchiveRepository.create();
 
     _archiveManager = ChatArchiveManager(
       characterId: _character.id,
       repository: archiveRepository,
-    );
-
-    _messageHandler = ChatMessageHandler(
-      character: _character,
-      modelConfig: _modelConfig,
     );
 
     _audioPlayerManager = ChatAudioPlayerManager();
@@ -79,10 +71,28 @@ class _ChatScreenState extends State<ChatScreen> {
       final latestCharacter =
           await _characterRepository.getCharacterById(_character.id);
       if (latestCharacter != null && mounted) {
-        setState(() => _character = latestCharacter);
+        setState(() {
+          _character = latestCharacter;
+          _modelConfig = latestCharacter.toModelConfig();
+        });
+
+        _messageHandler = ChatMessageHandler(
+          character: latestCharacter,
+          modelConfig: latestCharacter.toModelConfig(),
+        );
+      } else {
+        _messageHandler = ChatMessageHandler(
+          character: _character,
+          modelConfig: _modelConfig,
+        );
       }
     } catch (e) {
       if (mounted) {
+        // 如果获取最新角色信息失败，使用初始角色信息创建handler
+        _messageHandler = ChatMessageHandler(
+          character: _character,
+          modelConfig: _modelConfig,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('加载角色信息失败：$e')),
         );
@@ -330,6 +340,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       setState(() {
         _character = character;
+        _modelConfig = character.toModelConfig();
         if (_currentArchive != null) {
           // 强制更新当前存档以应用新的样式
           _currentArchive = _currentArchive!.copyWith();
@@ -348,17 +359,37 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _handleModelConfigUpdated(ModelConfig config) async {
     try {
-      // 重新获取最新的模型配置
-      final updatedConfig = await _modelConfigRepository.getConfig();
-      if (updatedConfig != null && mounted) {
-        setState(() {
-          _modelConfig = updatedConfig;
-        });
-      }
+      // 更新本地状态
+      setState(() {
+        _modelConfig = config;
+      });
+
+      // 使用copyWith更新角色对象
+      final updatedCharacter = _character.copyWith(
+        model: config.model,
+        useAdvancedSettings: true, // 如果修改了配置，说明启用了高级设置
+        temperature: config.temperature,
+        topP: config.topP,
+        presencePenalty: config.presencePenalty,
+        frequencyPenalty: config.frequencyPenalty,
+        maxTokens: config.maxTokens,
+        streamResponse: config.streamResponse,
+        enableDistillation: config.enableDistillation,
+        distillationRounds: config.distillationRounds,
+        distillationModel: config.distillationModel,
+      );
+
+      // 保存到数据库
+      await _characterRepository.saveCharacter(updatedCharacter);
+
+      // 更新本地角色状态
+      setState(() {
+        _character = updatedCharacter;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('更新模型配置失败：$e')),
+          SnackBar(content: Text('保存模型配置失败：$e')),
         );
       }
     }
@@ -784,6 +815,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ChatAppBar(
               character: _character,
               modelConfig: _modelConfig,
+              characterRepository: _characterRepository,
               onCharacterUpdated: _handleCharacterUpdated,
               onModelConfigUpdated: _handleModelConfigUpdated,
               onArchivePressed: _switchArchive,

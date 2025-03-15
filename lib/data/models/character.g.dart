@@ -40,6 +40,18 @@ Character _$CharacterFromJson(Map<String, dynamic> json) => Character(
       aiBubbleColor: json['aiBubbleColor'] as String? ?? '#1A1A1A',
       userTextColor: json['userTextColor'] as String? ?? '#FFFFFF',
       aiTextColor: json['aiTextColor'] as String? ?? '#FFFFFF',
+      model: json['model'] as String? ?? 'gemini-2.0-flash',
+      useAdvancedSettings: json['useAdvancedSettings'] as bool? ?? false,
+      temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
+      topP: (json['topP'] as num?)?.toDouble() ?? 1.0,
+      presencePenalty: (json['presencePenalty'] as num?)?.toDouble() ?? 0.0,
+      frequencyPenalty: (json['frequencyPenalty'] as num?)?.toDouble() ?? 0.0,
+      maxTokens: (json['maxTokens'] as num?)?.toInt() ?? 2000,
+      streamResponse: json['streamResponse'] as bool? ?? true,
+      enableDistillation: json['enableDistillation'] as bool? ?? false,
+      distillationRounds: (json['distillationRounds'] as num?)?.toInt() ?? 20,
+      distillationModel:
+          json['distillationModel'] as String? ?? 'gemini-distill',
     );
 
 Map<String, dynamic> _$CharacterToJson(Character instance) => <String, dynamic>{
@@ -57,4 +69,15 @@ Map<String, dynamic> _$CharacterToJson(Character instance) => <String, dynamic>{
       'aiBubbleColor': instance.aiBubbleColor,
       'userTextColor': instance.userTextColor,
       'aiTextColor': instance.aiTextColor,
+      'model': instance.model,
+      'useAdvancedSettings': instance.useAdvancedSettings,
+      'temperature': instance.temperature,
+      'topP': instance.topP,
+      'presencePenalty': instance.presencePenalty,
+      'frequencyPenalty': instance.frequencyPenalty,
+      'maxTokens': instance.maxTokens,
+      'streamResponse': instance.streamResponse,
+      'enableDistillation': instance.enableDistillation,
+      'distillationRounds': instance.distillationRounds,
+      'distillationModel': instance.distillationModel,
     };

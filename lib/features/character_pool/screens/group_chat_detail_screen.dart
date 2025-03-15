@@ -26,7 +26,6 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen> {
   }
 
   Widget _buildHeader() {
-    final theme = Theme.of(context);
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,

@@ -3,6 +3,7 @@ import '../../home/screens/home_screen.dart';
 import '../../character_pool/screens/character_pool_container_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
+import '../../lobby/screens/lobby_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,16 +18,17 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const CharacterPoolContainerScreen(),
+    const LobbyScreen(),
     const ProfileScreen(),
   ];
 
   int _getPageIndex(int navIndex) {
-    if (navIndex == 3) return 2;
+    if (navIndex == 4) return 3;
     return navIndex;
   }
 
   int _getNavIndex(int pageIndex) {
-    if (pageIndex == 2) return 3;
+    if (pageIndex == 3) return 4;
     return pageIndex;
   }
 
@@ -95,6 +97,10 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: _getNavIndex(_currentIndex),
         onDestinationSelected: (index) {
           if (index == 2) {
+            setState(() {
+              _currentIndex = index;
+            });
+          } else if (index == 3) {
             _openImmersiveMode();
           } else {
             setState(() {
@@ -103,6 +109,7 @@ class _MainScreenState extends State<MainScreen> {
           }
         },
         height: 65,
+        backgroundColor: theme.colorScheme.surface,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
           const NavigationDestination(
@@ -114,6 +121,11 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.auto_awesome_outlined),
             selectedIcon: Icon(Icons.auto_awesome),
             label: '角色池',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.forum_outlined),
+            selectedIcon: Icon(Icons.forum),
+            label: '大厅',
           ),
           NavigationDestination(
             icon: Stack(

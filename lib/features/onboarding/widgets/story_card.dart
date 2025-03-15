@@ -3,9 +3,10 @@ import 'dart:ui';
 import '../screens/story_edit_screen.dart';
 import '../../../data/models/story.dart';
 import '../../../core/utils/story_export_util.dart';
+import '../../../core/network/api/role_play_api.dart';
 import 'dart:io';
 
-class StoryCard extends StatelessWidget {
+class StoryCard extends StatefulWidget {
   final Story story;
   final VoidCallback onTap;
   final Function(Story) onDelete;
@@ -18,6 +19,45 @@ class StoryCard extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
   });
+
+  @override
+  _StoryCardState createState() => _StoryCardState();
+}
+
+class _StoryCardState extends State<StoryCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _dotsAnimationController;
+  late final List<Animation<double>> _dotsAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    // 初始化动画控制器
+    _dotsAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    // 创建三个点的动画
+    _dotsAnimations = List.generate(3, (index) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _dotsAnimationController,
+          curve: Interval(
+            index * 0.2,
+            0.6 + index * 0.2,
+            curve: Curves.easeInOut,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _dotsAnimationController.dispose();
+    super.dispose();
+  }
 
   String _getCategoryTitle(String categoryId) {
     switch (categoryId) {
@@ -49,130 +89,114 @@ class StoryCard extends StatelessWidget {
     }
   }
 
-  void _showMoreOptions(BuildContext context, RenderBox button, Offset offset) {
-    final size = MediaQuery.of(context).size;
-
-    showDialog(
+  void _showMoreMenu(BuildContext context) {
+    showModalBottomSheet(
       context: context,
-      barrierColor: Colors.transparent,
-      builder: (context) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  color: Colors.transparent,
-                ),
-              ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.2),
+                Colors.white.withOpacity(0.1),
+              ],
             ),
-            Positioned(
-              right: size.width - (offset.dx + button.size.width) + 8,
-              top: offset.dy - 12,
-              child: Container(
-                width: 140,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withOpacity(0.2),
-                          Colors.white.withOpacity(0.1),
-                        ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMenuItem(
+                context,
+                icon: Icons.edit_rounded,
+                label: '编辑',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context)
+                      .push(
+                    MaterialPageRoute(
+                      builder: (context) => StoryEditScreen(
+                        isEditing: true,
+                        story: widget.story,
                       ),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildMenuItem(
-                          context,
-                          icon: Icons.edit_rounded,
-                          label: '编辑',
-                          onTap: () {
-                            Navigator.pop(context);
-                            Navigator.of(context)
-                                .push(
-                              MaterialPageRoute(
-                                builder: (context) => StoryEditScreen(
-                                  isEditing: true,
-                                  story: story,
-                                ),
-                              ),
-                            )
-                                .then((edited) {
-                              if (edited == true) {
-                                onEdit();
-                              }
-                            });
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Divider(
-                            height: 1,
-                            color: Colors.white.withOpacity(0.1),
-                          ),
-                        ),
-                        _buildMenuItem(
-                          context,
-                          icon: Icons.file_upload_outlined,
-                          label: '导出',
-                          onTap: () async {
-                            Navigator.pop(context);
-                            try {
-                              await StoryExportUtil.exportStory(story);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('导出成功')),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text('导出失败: ${e.toString()}')),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Divider(
-                            height: 1,
-                            color: Colors.white.withOpacity(0.1),
-                          ),
-                        ),
-                        _buildMenuItem(
-                          context,
-                          icon: Icons.delete_outline_rounded,
-                          label: '删除',
-                          isDestructive: true,
-                          onTap: () {
-                            Navigator.pop(context);
-                            onDelete(story);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                  )
+                      .then((edited) {
+                    if (edited == true) {
+                      widget.onEdit();
+                    }
+                  });
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Divider(
+                  height: 1,
+                  color: Colors.white.withOpacity(0.1),
                 ),
               ),
-            ),
-          ],
-        );
-      },
+              _buildMenuItem(
+                context,
+                icon: Icons.share_outlined,
+                label: '分享到大厅',
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleShare(context);
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Divider(
+                  height: 1,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+              _buildMenuItem(
+                context,
+                icon: Icons.file_upload_outlined,
+                label: '导出',
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    await StoryExportUtil.exportStory(widget.story);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('导出成功')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('导出失败: ${e.toString()}')),
+                      );
+                    }
+                  }
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Divider(
+                  height: 1,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+              _buildMenuItem(
+                context,
+                icon: Icons.delete_outline_rounded,
+                label: '删除',
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onDelete(widget.story);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -221,13 +245,123 @@ class StoryCard extends StatelessWidget {
     );
   }
 
+  Future<void> _handleShare(BuildContext context) async {
+    // 显示上传对话框
+    if (!context.mounted) return;
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        dialogContext = context;
+        return Dialog(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: _buildLoadingDots(),
+        );
+      },
+    );
+
+    // 启动动画
+    _dotsAnimationController.repeat();
+
+    try {
+      final api = await RolePlayApi.getInstance();
+      final result = await api.uploadStory(widget.story);
+
+      if (!mounted) return;
+
+      // 立即停止动画
+      if (_dotsAnimationController.isAnimating) {
+        _dotsAnimationController.stop();
+        _dotsAnimationController.reset();
+      }
+
+      // 关闭对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享成功：${result['message']}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      // 立即停止动画
+      if (_dotsAnimationController.isAnimating) {
+        _dotsAnimationController.stop();
+        _dotsAnimationController.reset();
+      }
+
+      // 关闭对话框
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败：$e')),
+      );
+    }
+  }
+
+  Widget _buildLoadingDots() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '上传中',
+            style: TextStyle(
+              fontSize: 16,
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          ...List.generate(3, (index) {
+            return AnimatedBuilder(
+              animation: _dotsAnimations[index],
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, -4 * _dotsAnimations[index].value),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(
+                      '.',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final categoryTitle = _getCategoryTitle(story.categoryId);
-    final categoryColor = _getCategoryColor(story.categoryId);
+    final categoryTitle = _getCategoryTitle(widget.story.categoryId);
+    final categoryColor = _getCategoryColor(widget.story.categoryId);
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         height: 200,
         decoration: BoxDecoration(
@@ -245,9 +379,9 @@ class StoryCard extends StatelessWidget {
           children: [
             // 背景图片
             Positioned.fill(
-              child: story.coverImagePath != null
+              child: widget.story.coverImagePath != null
                   ? Image.file(
-                      File(story.coverImagePath!),
+                      File(widget.story.coverImagePath!),
                       fit: BoxFit.cover,
                       alignment: Alignment.center,
                     )
@@ -365,7 +499,7 @@ class StoryCard extends StatelessWidget {
                                     context.findRenderObject() as RenderBox;
                                 final offset =
                                     button.localToGlobal(Offset.zero);
-                                _showMoreOptions(context, button, offset);
+                                _showMoreMenu(context);
                               },
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -399,7 +533,7 @@ class StoryCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            story.title,
+                            widget.story.title,
                             style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
@@ -411,7 +545,7 @@ class StoryCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            story.description,
+                            widget.story.description,
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.white.withOpacity(0.85),

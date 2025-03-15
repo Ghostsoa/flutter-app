@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../../data/models/story.dart';
 import '../../../data/local/shared_prefs/story_storage.dart';
+import 'dart:convert';
+import '../../../core/network/api/role_play_api.dart';
 
 class CategoryData {
   final String id;
@@ -23,11 +25,13 @@ class CategoryData {
 class StoryEditScreen extends StatefulWidget {
   final bool isEditing;
   final Story? story;
+  final String? importFilePath;
 
   const StoryEditScreen({
     super.key,
     this.isEditing = false,
     this.story,
+    this.importFilePath,
   });
 
   @override
@@ -39,6 +43,7 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
   final _picker = ImagePicker();
   late final StoryStorage _storage;
   bool _isLoading = false;
+  bool _importing = false;
 
   String? _selectedCategoryId = 'xiuxian';
   File? _coverImageFile;
@@ -81,23 +86,86 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
     super.initState();
     _initStorage();
     if (widget.story != null) {
-      _titleController.text = widget.story!.title;
-      _descriptionController.text = widget.story!.description;
-      _openingController.text = widget.story!.opening;
-      _settingsController.text = widget.story!.settings;
-      _selectedCategoryId = widget.story!.categoryId;
-      _coverImagePath = widget.story!.coverImagePath;
-      _backgroundImagePath = widget.story!.backgroundImagePath;
-      _distillationRoundsController.text =
-          widget.story!.distillationRounds.toString();
-      if (widget.story!.coverImagePath != null) {
-        _coverImageFile = File(widget.story!.coverImagePath!);
-      }
-      if (widget.story!.backgroundImagePath != null) {
-        _backgroundImageFile = File(widget.story!.backgroundImagePath!);
-      }
+      _loadStory(widget.story!);
+    } else if (widget.importFilePath != null) {
+      _importStory();
     } else {
       _distillationRoundsController.text = '20'; // 默认值改为20
+    }
+  }
+
+  void _loadStory(Story story) {
+    _titleController.text = story.title;
+    _descriptionController.text = story.description;
+    _openingController.text = story.opening;
+    _settingsController.text = story.settings;
+    _selectedCategoryId = story.categoryId;
+    _coverImagePath = story.coverImagePath;
+    _backgroundImagePath = story.backgroundImagePath;
+    _distillationRoundsController.text = story.distillationRounds.toString();
+    if (story.coverImagePath != null) {
+      _coverImageFile = File(story.coverImagePath!);
+    }
+    if (story.backgroundImagePath != null) {
+      _backgroundImageFile = File(story.backgroundImagePath!);
+    }
+  }
+
+  Future<void> _importStory() async {
+    if (_importing) return;
+
+    setState(() => _importing = true);
+
+    try {
+      // 1. 获取故事配置
+      final api = await RolePlayApi.getInstance();
+      final configResponse = await api.getImageBytes(widget.importFilePath!);
+      final configData = json.decode(utf8.decode(configResponse));
+
+      // 2. 生成新的ID
+      configData['id'] = const Uuid().v4();
+
+      // 3. 处理图片数据
+      if (configData['coverImageData'] != null) {
+        final bytes = base64Decode(configData['coverImageData']);
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/${const Uuid().v4()}.jpg');
+        await tempFile.writeAsBytes(bytes);
+        setState(() {
+          _coverImageFile = tempFile;
+        });
+      }
+
+      if (configData['backgroundImageData'] != null) {
+        final bytes = base64Decode(configData['backgroundImageData']);
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/${const Uuid().v4()}.jpg');
+        await tempFile.writeAsBytes(bytes);
+        setState(() {
+          _backgroundImageFile = tempFile;
+        });
+      }
+
+      // 4. 填充表单数据
+      setState(() {
+        _titleController.text = configData['title'] ?? '';
+        _descriptionController.text = configData['description'] ?? '';
+        _openingController.text = configData['opening'] ?? '';
+        _settingsController.text = configData['settings'] ?? '';
+        _selectedCategoryId = configData['categoryId'] ?? 'xiuxian';
+        _distillationRoundsController.text =
+            (configData['distillationRounds'] ?? 20).toString();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败：$e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _importing = false);
+      }
     }
   }
 
@@ -358,7 +426,7 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
     required String label,
     required TextEditingController controller,
     String? hintText,
-    int maxLines = 1,
+    int minLines = 1,
     bool required = true,
   }) {
     return Column(
@@ -375,7 +443,8 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: controller,
-          maxLines: maxLines,
+          minLines: minLines,
+          maxLines: null,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 15,
@@ -683,21 +752,21 @@ class _StoryEditScreenState extends State<StoryEditScreen> {
                     label: '故事介绍',
                     controller: _descriptionController,
                     hintText: '请输入故事简介',
-                    maxLines: 3,
+                    minLines: 3,
                   ),
                   const SizedBox(height: 24),
                   _buildTextField(
                     label: '故事开场白',
                     controller: _openingController,
                     hintText: '请输入故事开场白',
-                    maxLines: 4,
+                    minLines: 3,
                   ),
                   const SizedBox(height: 24),
                   _buildTextField(
                     label: '故事设定',
                     controller: _settingsController,
                     hintText: '请输入故事世界观、人物设定等内容',
-                    maxLines: 6,
+                    minLines: 3,
                   ),
                   const SizedBox(height: 20),
                   Column(

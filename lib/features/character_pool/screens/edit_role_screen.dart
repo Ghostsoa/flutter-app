@@ -339,7 +339,8 @@ class _EditRoleScreenState extends State<EditRoleScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _descriptionController,
-              maxLines: 3,
+              minLines: 3,
+              maxLines: null,
               decoration: const InputDecoration(
                 labelText: '角色描述',
                 hintText: '描述这个角色的特点和设定',

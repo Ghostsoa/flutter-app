@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
-class ChatInput extends StatelessWidget {
+class ChatInput extends StatefulWidget {
   final TextEditingController controller;
   final bool isLoading;
   final VoidCallback? onSendPressed;
@@ -12,6 +13,59 @@ class ChatInput extends StatelessWidget {
     this.onSendPressed,
   });
 
+  @override
+  State<ChatInput> createState() => _ChatInputState();
+}
+
+class _ChatInputState extends State<ChatInput>
+    with SingleTickerProviderStateMixin {
+  final _focusNode = FocusNode();
+  bool _isComposing = false;
+  late AnimationController _sendButtonController;
+  late Animation<double> _sendButtonScaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChange);
+    widget.controller.addListener(_handleTextChange);
+
+    _sendButtonController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+
+    _sendButtonScaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.8,
+    ).animate(CurvedAnimation(
+      parent: _sendButtonController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInBack,
+    ));
+  }
+
+  void _handleFocusChange() {
+    setState(() {});
+  }
+
+  void _handleTextChange() {
+    final isComposing = widget.controller.text.isNotEmpty;
+    if (isComposing != _isComposing) {
+      setState(() {
+        _isComposing = isComposing;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
+    _sendButtonController.dispose();
+    super.dispose();
+  }
+
   void _insertParentheses(TextEditingController controller) {
     final text = controller.text;
     final selection = controller.selection;
@@ -22,7 +76,7 @@ class ChatInput extends StatelessWidget {
     controller.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(
-        offset: start + 1, // 将光标定位到括号中间
+        offset: start + 1,
       ),
     );
   }
@@ -36,78 +90,184 @@ class ChatInput extends StatelessWidget {
       left: 0,
       right: 0,
       bottom: 16 + bottomPadding,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: () => _insertParentheses(controller),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
-              icon: Icon(
-                Icons.edit_outlined,
-                size: 18,
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                maxLines: 5,
-                minLines: 1,
-                style: const TextStyle(fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: '说点什么...',
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                  ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: _focusNode.hasFocus
+                      ? theme.colorScheme.primary.withOpacity(0.3)
+                      : theme.colorScheme.onSurface.withOpacity(0.1),
+                  width: 1.5,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              margin: const EdgeInsets.only(right: 4),
-              width: 36,
-              height: 36,
-              child: Material(
-                color:
-                    isLoading ? Colors.transparent : theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  onTap: isLoading ? null : onSendPressed,
-                  borderRadius: BorderRadius.circular(12),
-                  child: isLoading
-                      ? Center(
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.primary,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 200),
+                      tween: Tween<double>(
+                        begin: 0.0,
+                        end: _focusNode.hasFocus ? 1.0 : 0.0,
+                      ),
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: 0.8 + (value * 0.2),
+                          child: child,
+                        );
+                      },
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: IconButton(
+                          onPressed: () =>
+                              _insertParentheses(widget.controller),
+                          padding: EdgeInsets.zero,
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            size: 20,
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: TextField(
+                        controller: widget.controller,
+                        focusNode: _focusNode,
+                        minLines: 1,
+                        maxLines: 5,
+                        textAlignVertical: TextAlignVertical.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.4,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '说点什么...',
+                          hintStyle: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withOpacity(0.6),
+                            height: 1.4,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onSubmitted: (_) {
+                          if (_isComposing && widget.onSendPressed != null) {
+                            widget.onSendPressed!();
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: AnimatedBuilder(
+                      animation: _sendButtonController,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _sendButtonScaleAnimation.value,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  _isComposing
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.surfaceVariant
+                                          .withOpacity(0.5),
+                                  _isComposing
+                                      ? theme.colorScheme.primary
+                                          .withOpacity(0.8)
+                                      : theme.colorScheme.surfaceVariant
+                                          .withOpacity(0.3),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: _isComposing
+                                  ? [
+                                      BoxShadow(
+                                        color: theme.colorScheme.primary
+                                            .withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: (!_isComposing || widget.isLoading)
+                                    ? null
+                                    : () {
+                                        _sendButtonController
+                                            .forward()
+                                            .then((_) {
+                                          _sendButtonController.reverse();
+                                        });
+                                        widget.onSendPressed?.call();
+                                      },
+                                borderRadius: BorderRadius.circular(20),
+                                child: widget.isLoading
+                                    ? Center(
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _isComposing
+                                                ? theme.colorScheme.onPrimary
+                                                : theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.send_rounded,
+                                        color: _isComposing
+                                            ? theme.colorScheme.onPrimary
+                                            : theme.colorScheme.onSurfaceVariant
+                                                .withOpacity(0.4),
+                                        size: 20,
+                                      ),
+                              ),
                             ),
                           ),
-                        )
-                      : Icon(
-                          Icons.send_rounded,
-                          color: theme.colorScheme.onPrimary,
-                          size: 18,
-                        ),
-                ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
