@@ -201,12 +201,14 @@ class _ChatInputState extends State<ChatInput>
                                 colors: [
                                   _isComposing
                                       ? theme.colorScheme.primary
-                                      : theme.colorScheme.surfaceVariant
+                                      : theme
+                                          .colorScheme.surfaceContainerHighest
                                           .withOpacity(0.5),
                                   _isComposing
                                       ? theme.colorScheme.primary
                                           .withOpacity(0.8)
-                                      : theme.colorScheme.surfaceVariant
+                                      : theme
+                                          .colorScheme.surfaceContainerHighest
                                           .withOpacity(0.3),
                                 ],
                               ),

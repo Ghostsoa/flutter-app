@@ -794,7 +794,7 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             filled: true,
-                            fillColor: theme.colorScheme.surfaceVariant
+                            fillColor: theme.colorScheme.surfaceContainerHighest
                                 .withOpacity(0.3),
                           ),
                           validator: (value) {
@@ -837,7 +837,7 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             filled: true,
-                            fillColor: theme.colorScheme.surfaceVariant
+                            fillColor: theme.colorScheme.surfaceContainerHighest
                                 .withOpacity(0.3),
                             alignLabelWithHint: true,
                           ),
@@ -875,7 +875,7 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             filled: true,
-                            fillColor: theme.colorScheme.surfaceVariant
+                            fillColor: theme.colorScheme.surfaceContainerHighest
                                 .withOpacity(0.3),
                             alignLabelWithHint: true,
                           ),
@@ -1000,8 +1000,8 @@ class _CreateGroupChatScreenState extends State<CreateGroupChatScreen> {
                                                 ),
                                                 isDense: true,
                                                 filled: true,
-                                                fillColor: theme
-                                                    .colorScheme.surfaceVariant
+                                                fillColor: theme.colorScheme
+                                                    .surfaceContainerHighest
                                                     .withOpacity(0.3),
                                               ),
                                               style: const TextStyle(

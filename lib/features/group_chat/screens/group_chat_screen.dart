@@ -249,7 +249,7 @@ class _GroupChatScreenState extends State<GroupChatScreen>
       // 只有在最终失败时才显示错误提示
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${speaker}发言失败：$lastError')),
+          SnackBar(content: Text('$speaker发言失败：$lastError')),
         );
       }
 

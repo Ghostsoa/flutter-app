@@ -196,11 +196,11 @@ class _GroupChatInputState extends State<GroupChatInput>
                               colors: [
                                 _isComposing
                                     ? theme.colorScheme.primary
-                                    : theme.colorScheme.surfaceVariant
+                                    : theme.colorScheme.surfaceContainerHighest
                                         .withOpacity(0.5),
                                 _isComposing
                                     ? theme.colorScheme.primary.withOpacity(0.8)
-                                    : theme.colorScheme.surfaceVariant
+                                    : theme.colorScheme.surfaceContainerHighest
                                         .withOpacity(0.3),
                               ],
                             ),

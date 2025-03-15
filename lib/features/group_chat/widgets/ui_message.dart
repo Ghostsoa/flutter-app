@@ -131,14 +131,14 @@ class UiMessage extends StatelessWidget {
                       color: Colors.white.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.chat_bubble_outline_rounded,
                       size: 16,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
+                  const Text(
                     '开场白',
                     style: TextStyle(
                       fontSize: 14,

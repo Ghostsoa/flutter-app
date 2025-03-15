@@ -5,6 +5,7 @@ import '../widgets/story_card.dart';
 import '../../../data/models/hall_item.dart';
 import '../../../core/network/api/role_play_api.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
@@ -13,15 +14,21 @@ class LobbyScreen extends StatefulWidget {
   State<LobbyScreen> createState() => _LobbyScreenState();
 }
 
-class _LobbyScreenState extends State<LobbyScreen> {
+class _LobbyScreenState extends State<LobbyScreen>
+    with SingleTickerProviderStateMixin {
   final _scrollController = ScrollController();
   final _showTitleNotifier = ValueNotifier<bool>(false);
   final _selectedTypeNotifier = ValueNotifier<String?>(null);
-  final _isLoadingNotifier = ValueNotifier<bool>(false);
-  final _hasMoreNotifier = ValueNotifier<bool>(true);
-  final _currentPageNotifier = ValueNotifier<int>(1);
-  final _itemsNotifier = ValueNotifier<List<HallItem>>([]);
+  final _isMyItemsNotifier = ValueNotifier<bool>(false);
+  final _refreshController = RefreshController();
+  final _items = <HallItem>[];
+  static const _pageSize = 5;
+  late final TabController _tabController;
   RolePlayApi? _api;
+  int _currentPage = 1;
+  bool _hasMore = true;
+  bool _isLoading = false;
+  Future<void>? _loadingFuture;
 
   @override
   void initState() {
@@ -29,12 +36,22 @@ class _LobbyScreenState extends State<LobbyScreen> {
     timeago.setLocaleMessages('zh', timeago.ZhMessages());
     timeago.setDefaultLocale('zh');
     _scrollController.addListener(_handleScroll);
-    _initApi();
+    _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(_handleTabChange);
+    setState(() {
+      _isLoading = true;
+    });
+    _loadingFuture = _initApi();
   }
 
   Future<void> _initApi() async {
     _api = await RolePlayApi.getInstance();
-    await _loadItems(isRefresh: true);
+    await _loadData();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _handleScroll() {
@@ -47,46 +64,91 @@ class _LobbyScreenState extends State<LobbyScreen> {
         _showTitleNotifier.value = false;
       });
     }
+  }
 
-    // 检查是否需要加载更多
-    if (!_isLoadingNotifier.value && // 确保当前没有在加载
-        _hasMoreNotifier.value && // 确保还有更多数据
-        _scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadMore();
+  void _handleTabChange() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {
+        _isLoading = true;
+      });
+      switch (_tabController.index) {
+        case 0:
+          _selectedTypeNotifier.value = null;
+          _isMyItemsNotifier.value = false;
+          break;
+        case 1:
+          _selectedTypeNotifier.value = 'character';
+          _isMyItemsNotifier.value = false;
+          break;
+        case 2:
+          _selectedTypeNotifier.value = 'group_chat';
+          _isMyItemsNotifier.value = false;
+          break;
+        case 3:
+          _selectedTypeNotifier.value = 'story';
+          _isMyItemsNotifier.value = false;
+          break;
+        case 4:
+          _isMyItemsNotifier.value = true;
+          break;
+      }
+      _onRefresh().then((_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       });
     }
   }
 
-  Future<void> _loadItems({bool isRefresh = false}) async {
-    if (_isLoadingNotifier.value || (!_hasMoreNotifier.value && !isRefresh)) {
+  Future<void> _onRefresh() async {
+    setState(() {
+      _isLoading = true;
+    });
+    _currentPage = 1;
+    _hasMore = true;
+    _items.clear();
+    await _loadData();
+    _refreshController.refreshCompleted();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _onLoading() async {
+    if (!_hasMore) {
+      _refreshController.loadNoData();
       return;
     }
+    await _loadData();
+    _refreshController.loadComplete();
+  }
 
-    _isLoadingNotifier.value = true;
-
+  Future<void> _loadData() async {
     try {
-      final page = isRefresh ? 1 : _currentPageNotifier.value + 1;
-      final response = await _api!.getHallItems(
-        page: page,
-        pageSize: 5,
-        type: _selectedTypeNotifier.value,
-      );
+      final response = _isMyItemsNotifier.value
+          ? await _api!.getMyItems(
+              page: _currentPage,
+              pageSize: _pageSize,
+              type: _selectedTypeNotifier.value,
+            )
+          : await _api!.getHallItems(
+              page: _currentPage,
+              pageSize: _pageSize,
+              type: _selectedTypeNotifier.value,
+            );
 
       if (mounted) {
-        if (isRefresh) {
-          _itemsNotifier.value = response.list;
-          _currentPageNotifier.value = 1;
-        } else {
-          final currentItems = _itemsNotifier.value;
-          currentItems.addAll(response.list);
-          _currentPageNotifier.value = page;
-        }
-
-        // 更新是否还有更多数据
-        _hasMoreNotifier.value =
-            response.list.isNotEmpty && response.page < response.pages;
+        setState(() {
+          _items.addAll(response.list);
+          _hasMore = _currentPage < response.pages;
+          if (_hasMore) {
+            _currentPage++;
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -94,21 +156,49 @@ class _LobbyScreenState extends State<LobbyScreen> {
           SnackBar(content: Text('加载失败：$e')),
         );
       }
-    } finally {
-      if (mounted) {
-        _isLoadingNotifier.value = false;
+      _refreshController.loadFailed();
+    }
+  }
+
+  Future<void> _handleDelete(HallItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除确认'),
+        content: Text('确定要删除【${item.name}】吗？此操作不可恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await _api!.deleteItem(item.id);
+        _onRefresh();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('删除成功')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('删除失败：$e')),
+          );
+        }
       }
     }
-  }
-
-  Future<void> _loadMore() async {
-    if (!_isLoadingNotifier.value && _hasMoreNotifier.value) {
-      await _loadItems();
-    }
-  }
-
-  Future<void> _handleRefresh() async {
-    await _loadItems(isRefresh: true);
   }
 
   @override
@@ -116,10 +206,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
     _scrollController.dispose();
     _showTitleNotifier.dispose();
     _selectedTypeNotifier.dispose();
-    _isLoadingNotifier.dispose();
-    _hasMoreNotifier.dispose();
-    _currentPageNotifier.dispose();
-    _itemsNotifier.dispose();
+    _isMyItemsNotifier.dispose();
+    _refreshController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -182,197 +271,329 @@ class _LobbyScreenState extends State<LobbyScreen> {
               ),
             ),
           ),
-        ],
-        body: Column(
-          children: [
-            // 分类筛选
-            SizedBox(
-              height: 48,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ValueListenableBuilder<String?>(
-                  valueListenable: _selectedTypeNotifier,
-                  builder: (context, selectedType, _) {
-                    return Row(
-                      children: [
-                        _buildFilterChip(
-                          label: '全部',
-                          selected: selectedType == null,
-                          onSelected: (selected) {
-                            _selectedTypeNotifier.value = null;
-                            _loadItems(isRefresh: true);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                          label: '单人',
-                          icon: Icons.person_outline,
-                          selected: selectedType == 'character',
-                          onSelected: (selected) {
-                            _selectedTypeNotifier.value =
-                                selected ? 'character' : null;
-                            _loadItems(isRefresh: true);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                          label: '群聊',
-                          icon: Icons.groups_outlined,
-                          selected: selectedType == 'group_chat',
-                          onSelected: (selected) {
-                            _selectedTypeNotifier.value =
-                                selected ? 'group_chat' : null;
-                            _loadItems(isRefresh: true);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                          label: '故事',
-                          icon: Icons.auto_stories_outlined,
-                          selected: selectedType == 'story',
-                          onSelected: (selected) {
-                            _selectedTypeNotifier.value =
-                                selected ? 'story' : null;
-                            _loadItems(isRefresh: true);
-                          },
-                        ),
-                      ],
-                    );
-                  },
+          SliverToBoxAdapter(
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tabs: const [
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('全部'),
+                    ],
+                  ),
                 ),
-              ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_outline, size: 16),
+                      SizedBox(width: 4),
+                      Text('单人'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.groups_outlined, size: 16),
+                      SizedBox(width: 4),
+                      Text('群聊'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_stories_outlined, size: 16),
+                      SizedBox(width: 4),
+                      Text('故事'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.folder_special_outlined, size: 16),
+                      SizedBox(width: 4),
+                      Text('我的'),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            // 列表
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _handleRefresh,
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _isLoadingNotifier,
-                  builder: (context, isLoading, _) {
-                    return ValueListenableBuilder<List<HallItem>>(
-                      valueListenable: _itemsNotifier,
-                      builder: (context, items, _) {
-                        if (items.isEmpty && !isLoading) {
-                          return Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.auto_stories_outlined,
-                                  size: 64,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  '暂无内容',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
+          ),
+        ],
+        body: FutureBuilder(
+          future: _loadingFuture,
+          builder: (context, snapshot) {
+            if (_isLoading) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      '正在加载...',
+                      style: TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
 
-                        return ValueListenableBuilder<bool>(
-                          valueListenable: _hasMoreNotifier,
-                          builder: (context, hasMore, _) {
-                            return ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount:
-                                  items.length + (hasMore || isLoading ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == items.length) {
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    child: Center(
-                                      child: SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: theme.colorScheme.primary,
+            return Stack(
+              children: [
+                SmartRefresher(
+                  controller: _refreshController,
+                  enablePullDown: true,
+                  enablePullUp: true,
+                  header: const WaterDropHeader(
+                    complete: Text('刷新完成'),
+                    failed: Text('刷新失败'),
+                    waterDropColor: Colors.blue,
+                  ),
+                  footer: CustomFooter(
+                    loadStyle: LoadStyle.ShowWhenLoading,
+                    height: 40,
+                    builder: (context, mode) {
+                      Widget? body;
+                      if (mode == LoadStatus.idle) {
+                        body = Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "上拉加载更多",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        );
+                      } else if (mode == LoadStatus.loading) {
+                        body = Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "正在加载...",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        );
+                      } else if (mode == LoadStatus.failed) {
+                        body = Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 15,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "加载失败，点击重试",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ],
+                        );
+                      } else if (mode == LoadStatus.canLoading) {
+                        body = Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "松手加载更多",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        body = Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              size: 15,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "已经到底啦",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return SizedBox(
+                        height: 40,
+                        child: Center(child: body),
+                      );
+                    },
+                  ),
+                  onRefresh: _onRefresh,
+                  onLoading: _onLoading,
+                  child: _items.isEmpty && !_isLoading
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_stories_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '暂无内容',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _items.length,
+                          itemBuilder: (context, index) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index < _items.length - 1 ? 16 : 0,
+                            ),
+                            child: Stack(
+                              children: [
+                                _buildCard(_items[index]),
+                                if (_isMyItemsNotifier.value)
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: Material(
+                                      elevation: 4,
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        onTap: () =>
+                                            _handleDelete(_items[index]),
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.delete_outline,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Text(
+                                                '删除',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  );
-                                }
-
-                                final item = items[index];
-                                return Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: index < items.length - 1 ? 16 : 0,
                                   ),
-                                  child: switch (item.type) {
-                                    'character' => SingleCharacterCard(
-                                        key: ValueKey('character_${item.id}'),
-                                        item: item,
-                                      ),
-                                    'group_chat' => GroupChatCard(
-                                        key: ValueKey('group_chat_${item.id}'),
-                                        item: item,
-                                      ),
-                                    'story' => StoryCard(
-                                        key: ValueKey('story_${item.id}'),
-                                        item: item,
-                                      ),
-                                    _ => const SizedBox.shrink(),
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
+                              ],
+                            ),
+                          ),
+                        ),
                 ),
-              ),
-            ),
-          ],
+                if (_isLoading && _items.isNotEmpty)
+                  Container(
+                    color: Colors.black.withOpacity(0.1),
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildFilterChip({
-    required String label,
-    IconData? icon,
-    required bool selected,
-    required ValueChanged<bool> onSelected,
-  }) {
-    final theme = Theme.of(context);
-    return FilterChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(
-              icon,
-              size: 16,
-              color: selected
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
-            ),
-            const SizedBox(width: 4),
-          ],
-          Text(label),
-        ],
-      ),
-      selected: selected,
-      onSelected: onSelected,
-      showCheckmark: false,
-      backgroundColor: theme.colorScheme.surfaceVariant,
-      selectedColor: theme.colorScheme.primary,
-      labelStyle: TextStyle(
-        color: selected
-            ? theme.colorScheme.onPrimary
-            : theme.colorScheme.onSurface,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-    );
+  Widget _buildCard(HallItem item) {
+    return switch (item.type) {
+      'character' => SingleCharacterCard(
+          key: ValueKey('character_${item.id}'),
+          item: item,
+        ),
+      'group_chat' => GroupChatCard(
+          key: ValueKey('group_chat_${item.id}'),
+          item: item,
+        ),
+      'story' => StoryCard(
+          key: ValueKey('story_${item.id}'),
+          item: item,
+        ),
+      _ => const SizedBox.shrink(),
+    };
   }
 }

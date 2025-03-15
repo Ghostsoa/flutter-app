@@ -114,6 +114,20 @@ class DioClient {
     }
   }
 
+  Future<Response> delete(
+    String path, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    return _dio.delete(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
+
   Future<void> saveToken(String token) async {
     await _prefs.setString(_tokenKey, token);
   }

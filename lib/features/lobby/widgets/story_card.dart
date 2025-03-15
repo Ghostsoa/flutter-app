@@ -119,9 +119,9 @@ class _StoryCardState extends State<StoryCard>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
+        const Text(
           '导入中',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             color: Colors.white,
             fontWeight: FontWeight.w500,
@@ -134,11 +134,11 @@ class _StoryCardState extends State<StoryCard>
             builder: (context, child) {
               return Transform.translate(
                 offset: Offset(0, -4 * _dotsAnimations[index].value),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2),
                   child: Text(
                     '.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,

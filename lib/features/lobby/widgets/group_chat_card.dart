@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../data/models/hall_item.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../../core/network/api/role_play_api.dart';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';

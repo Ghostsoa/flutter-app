@@ -31,7 +31,7 @@ class _GroupChatDetailScreenState extends State<GroupChatDetailScreen> {
       pinned: true,
       leading: Container(
         margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.black26,
           shape: BoxShape.circle,
         ),

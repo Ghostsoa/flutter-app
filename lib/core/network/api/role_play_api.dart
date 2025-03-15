@@ -7,7 +7,6 @@ import '../../../data/models/story.dart';
 import '../../../data/models/hall_item.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 class RolePlayApi {
@@ -210,6 +209,51 @@ class RolePlayApi {
           throw errorMessage;
         }
         throw e.message ?? '获取失败';
+      }
+      rethrow;
+    }
+  }
+
+  Future<HallResponse> getMyItems({
+    required int page,
+    required int pageSize,
+    String? type,
+  }) async {
+    try {
+      final queryParameters = {
+        'page': page,
+        'page_size': pageSize,
+        if (type != null) 'type': type,
+      };
+
+      final response = await _dioClient.get(
+        '/api/v1/role-play/my',
+        queryParameters: queryParameters,
+      );
+
+      return HallResponse.fromJson(response.data['data']);
+    } catch (e) {
+      if (e is DioException) {
+        if (e.response?.data != null) {
+          final errorMessage = e.response?.data['message'] ?? e.message;
+          throw errorMessage;
+        }
+        throw e.message ?? '获取失败';
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> deleteItem(int id) async {
+    try {
+      await _dioClient.delete('/api/v1/role-play/$id');
+    } catch (e) {
+      if (e is DioException) {
+        if (e.response?.data != null) {
+          final errorMessage = e.response?.data['message'] ?? e.message;
+          throw errorMessage;
+        }
+        throw e.message ?? '删除失败';
       }
       rethrow;
     }
