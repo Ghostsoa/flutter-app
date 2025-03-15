@@ -396,7 +396,9 @@ class _StoryCardState extends State<StoryCard>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        widget.item.authorName,
+                        widget.item.authorName.length > 3
+                            ? '${widget.item.authorName.substring(0, 3)}...'
+                            : widget.item.authorName,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.5),
                         ),

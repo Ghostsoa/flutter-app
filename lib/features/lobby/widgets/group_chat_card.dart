@@ -436,7 +436,9 @@ class _GroupChatCardState extends State<GroupChatCard>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        widget.item.authorName,
+                        widget.item.authorName.length > 3
+                            ? '${widget.item.authorName.substring(0, 3)}...'
+                            : widget.item.authorName,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
