@@ -771,6 +771,11 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
                 onChanged: (value) {
                   setState(() {
                     _useAdvancedSettings = value;
+                    if (!value) {
+                      // 关闭高级设置时，重置相关参数
+                      _streamResponse = true;
+                      _enableDistillation = false;
+                    }
                   });
                 },
               ),
@@ -850,129 +855,131 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
                           });
                         },
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          margin: EdgeInsets.zero,
-          child: Column(
-            children: [
-              SwitchListTile(
-                title: const Text('流式响应'),
-                subtitle: const Text('开启后可以实时看到模型的输出'),
-                value: _streamResponse,
-                onChanged: (value) {
-                  setState(() {
-                    _streamResponse = value;
-                  });
-                },
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                title: Row(
-                  children: [
-                    const Text('启用蒸馏'),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      SwitchListTile(
+                        title: const Text('流式响应'),
+                        subtitle: const Text('开启后可以实时看到模型的输出'),
+                        value: _streamResponse,
+                        onChanged: (value) {
+                          setState(() {
+                            _streamResponse = value;
+                          });
+                        },
                       ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'Beta',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
+                      const Divider(),
+                      SwitchListTile(
+                        title: Row(
+                          children: [
+                            const Text('启用蒸馏'),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Beta',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        subtitle: const Text('通过多轮对话优化输出质量'),
+                        value: _enableDistillation,
+                        onChanged: (value) {
+                          setState(() {
+                            _enableDistillation = value;
+                          });
+                        },
                       ),
-                    ),
-                  ],
-                ),
-                subtitle: const Text('通过多轮对话优化输出质量'),
-                value: _enableDistillation,
-                onChanged: (value) {
-                  setState(() {
-                    _enableDistillation = value;
-                  });
-                },
-              ),
-              if (_enableDistillation) ...[
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  '蒸馏轮数',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
+                      if (_enableDistillation) ...[
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          '蒸馏轮数',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '进行多少轮优化，轮数越多效果越好，但耗时也越长。',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '进行多少轮优化，轮数越多效果越好，但耗时也越长。',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[600],
+                                  const SizedBox(width: 16),
+                                  SizedBox(
+                                    width: 80,
+                                    child: TextFormField(
+                                      initialValue:
+                                          _distillationRounds.toString(),
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 12,
+                                        ),
+                                        isDense: true,
+                                        hintText: '20',
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      onChanged: (value) {
+                                        final rounds = int.tryParse(value);
+                                        if (rounds != null &&
+                                            rounds > 0 &&
+                                            rounds <= 100) {
+                                          setState(() {
+                                            _distillationRounds = rounds;
+                                          });
+                                        }
+                                      },
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          SizedBox(
-                            width: 80,
-                            child: TextFormField(
-                              initialValue: _distillationRounds.toString(),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                                isDense: true,
-                                hintText: '20',
+                                ],
                               ),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                              onChanged: (value) {
-                                final rounds = int.tryParse(value);
-                                if (rounds != null &&
-                                    rounds > 0 &&
-                                    rounds <= 100) {
-                                  setState(() {
-                                    _distillationRounds = rounds;
-                                  });
-                                }
-                              },
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
