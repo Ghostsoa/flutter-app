@@ -132,7 +132,7 @@ class _LobbyScreenState extends State<LobbyScreen>
   Future<void> _loadData() async {
     try {
       final response = _isMyItemsNotifier.value
-          ? await _api!.getHallItems(
+          ? await _api!.getMyItems(
               page: _currentPage,
               pageSize: _pageSize,
               type: _selectedTypeNotifier.value,
