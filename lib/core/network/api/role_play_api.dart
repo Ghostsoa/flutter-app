@@ -183,12 +183,14 @@ class RolePlayApi {
     required int page,
     required int pageSize,
     String? type,
+    String? query,
   }) async {
     try {
       final queryParameters = {
         'page': page,
         'page_size': pageSize,
         if (type != null) 'type': type,
+        if (query != null) 'keyword': query,
       };
 
       final response = await _dioClient.get(
@@ -218,12 +220,14 @@ class RolePlayApi {
     required int page,
     required int pageSize,
     String? type,
+    String? query,
   }) async {
     try {
       final queryParameters = {
         'page': page,
         'page_size': pageSize,
         if (type != null) 'type': type,
+        if (query != null) 'keyword': query,
       };
 
       final response = await _dioClient.get(

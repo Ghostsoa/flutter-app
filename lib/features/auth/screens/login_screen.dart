@@ -184,7 +184,12 @@ class _LoginScreenState extends State<LoginScreen> {
         if (success && mounted) {
           await _saveCredentials();
           Logger.info('登录成功，准备导航到主页');
-          Navigator.of(context).pushReplacementNamed('/main');
+          if (!mounted) return;
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/main',
+            (route) => false,
+          );
         } else if (mounted) {
           Logger.error('登录失败：用户名或密码错误');
           ScaffoldMessenger.of(context).showSnackBar(

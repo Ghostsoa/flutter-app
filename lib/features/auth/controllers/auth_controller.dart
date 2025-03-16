@@ -139,19 +139,13 @@ class AuthController extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      await _repository.sendVerificationCode(email);
-      return (success: true, message: '验证码已发送');
+      final response = await _repository.sendVerificationCode(email);
+      return (
+        success: true,
+        message: response['message'] as String? ?? '验证码已发送'
+      );
     } catch (e) {
-      final message = e.toString();
-      if (message.contains('400')) {
-        return (
-          success: false,
-          message: message.contains('message')
-              ? message.split('message":"')[1].split('"')[0]
-              : '邮箱格式不正确'
-        );
-      }
-      return (success: false, message: '发送验证码失败，请稍后重试');
+      return (success: false, message: e.toString());
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -169,7 +163,7 @@ class AuthController extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      _currentUser = await _repository.register(
+      await _repository.register(
         username: username,
         email: email,
         password: password,
@@ -177,16 +171,7 @@ class AuthController extends ChangeNotifier {
       );
       return (success: true, message: '注册成功');
     } catch (e) {
-      final message = e.toString();
-      if (message.contains('400')) {
-        return (
-          success: false,
-          message: message.contains('message')
-              ? message.split('message":"')[1].split('"')[0]
-              : '注册信息有误，请检查后重试'
-        );
-      }
-      return (success: false, message: '注册失败，请稍后重试');
+      return (success: false, message: e.toString());
     } finally {
       _isLoading = false;
       notifyListeners();

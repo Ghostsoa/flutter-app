@@ -21,7 +21,9 @@ class _LobbyScreenState extends State<LobbyScreen>
   final _selectedTypeNotifier = ValueNotifier<String?>(null);
   final _isMyItemsNotifier = ValueNotifier<bool>(false);
   final _refreshController = RefreshController();
+  final _searchController = TextEditingController();
   final _items = <HallItem>[];
+  String _searchQuery = '';
   static const _pageSize = 5;
   late final TabController _tabController;
   RolePlayApi? _api;
@@ -130,15 +132,17 @@ class _LobbyScreenState extends State<LobbyScreen>
   Future<void> _loadData() async {
     try {
       final response = _isMyItemsNotifier.value
-          ? await _api!.getMyItems(
+          ? await _api!.getHallItems(
               page: _currentPage,
               pageSize: _pageSize,
               type: _selectedTypeNotifier.value,
+              query: _searchQuery.isNotEmpty ? _searchQuery : null,
             )
           : await _api!.getHallItems(
               page: _currentPage,
               pageSize: _pageSize,
               type: _selectedTypeNotifier.value,
+              query: _searchQuery.isNotEmpty ? _searchQuery : null,
             );
 
       if (mounted) {
@@ -208,6 +212,7 @@ class _LobbyScreenState extends State<LobbyScreen>
     _selectedTypeNotifier.dispose();
     _isMyItemsNotifier.dispose();
     _refreshController.dispose();
+    _searchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -263,6 +268,92 @@ class _LobbyScreenState extends State<LobbyScreen>
                         '探索精彩对话，发现有趣角色',
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    theme.colorScheme.shadow.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: '搜索卡名或作者...',
+                              hintStyle: TextStyle(
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.5),
+                                fontSize: 15,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search_rounded,
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.5),
+                              ),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        color: theme.colorScheme.onSurface
+                                            .withOpacity(0.5),
+                                      ),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() {
+                                          _searchQuery = '';
+                                        });
+                                        _onRefresh();
+                                      },
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: theme.colorScheme.surface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color: theme.colorScheme.outline
+                                      .withOpacity(0.1),
+                                  width: 1,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color: theme.colorScheme.primary
+                                      .withOpacity(0.5),
+                                  width: 1.5,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
+                            ),
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            cursorColor: theme.colorScheme.primary,
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value;
+                              });
+                              _onRefresh();
+                            },
+                          ),
                         ),
                       ),
                     ],

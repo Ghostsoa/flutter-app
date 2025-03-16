@@ -54,14 +54,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final result =
           await _authController.sendVerificationCode(_emailController.text);
-      if (!result.success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.message ?? '发送验证码失败'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(result.message ?? (result.success ? '验证码已发送' : '发送验证码失败')),
+            backgroundColor: result.success ? Colors.green : Colors.red,
+          ),
+        );
+
+        if (!result.success) {
           setState(() {
             _isResendingCode = false;
             _resendCountdown = 0;
@@ -107,6 +109,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
         if (result.success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message ?? '注册成功'),
+              backgroundColor: Colors.green,
+            ),
+          );
           Navigator.pop(context);
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
