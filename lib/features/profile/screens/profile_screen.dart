@@ -103,8 +103,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleUpdate() async {
     final url = Platform.isAndroid
-        ? 'https://ai.xiaoyi.live/%E7%BD%91%E6%87%BF%E4%BA%91AI.apk'
-        : 'https://ai.xiaoyi.live/%E7%BD%91%E6%87%BF%E4%BA%91AI.ipa';
+        ? 'https://ai.xiaoyi.live/%E5%B0%8F%E6%87%BFAI.apk'
+        : 'https://ai.xiaoyi.live/%E5%B0%8F%E6%87%BFAI.ipa';
 
     try {
       if (await canLaunchUrl(Uri.parse(url))) {
