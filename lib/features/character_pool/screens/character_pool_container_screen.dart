@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import './character_pool_screen.dart';
 import './group_chat_list_screen.dart';
+import './special_character_screen.dart';
 
 class CharacterPoolContainerScreen extends StatefulWidget {
   const CharacterPoolContainerScreen({super.key});
@@ -12,12 +14,25 @@ class CharacterPoolContainerScreen extends StatefulWidget {
 }
 
 class _CharacterPoolContainerScreenState
-    extends State<CharacterPoolContainerScreen> {
+    extends State<CharacterPoolContainerScreen>
+    with SingleTickerProviderStateMixin {
   static const String _tabKey = 'character_pool_tab';
   bool _isGroupChat = false;
   late final PageController _pageController;
   bool _isInitialized = false;
   final _refreshNotifier = ValueNotifier<bool>(false);
+
+  // 定义主题色，与多模态对话页面保持一致
+  static const Color starBlue = Color(0xFF6B8CFF);
+  static const Color dreamPurple = Color(0xFFB277FF);
+
+  final List<Color> _gradientColors = [
+    starBlue,
+    dreamPurple,
+    starBlue.withOpacity(0.8),
+    dreamPurple.withOpacity(0.8),
+    starBlue,
+  ];
 
   @override
   void initState() {
@@ -102,6 +117,44 @@ class _CharacterPoolContainerScreenState
     );
   }
 
+  Widget _buildShiningStarButton() {
+    return Container(
+      margin: const EdgeInsets.only(right: 16),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const SpecialCharacterScreen(),
+            ),
+          );
+        },
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return LinearGradient(
+                  colors: _gradientColors,
+                  stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+                ).createShader(bounds);
+              },
+              child: SvgPicture.asset(
+                'assets/icons/four_point_star.svg',
+                width: 24,
+                height: 24,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
@@ -112,27 +165,19 @@ class _CharacterPoolContainerScreenState
       );
     }
 
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('角色池'),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            height: 36,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               children: [
                 _buildTabButton(
-                  label: '普通',
+                  label: '角色池',
                   isSelected: !_isGroupChat,
                   onTap: () => _switchTab(false),
                 ),
+                const SizedBox(width: 8),
                 _buildTabButton(
                   label: '群聊',
                   isSelected: _isGroupChat,
@@ -140,8 +185,9 @@ class _CharacterPoolContainerScreenState
                 ),
               ],
             ),
-          ),
-        ],
+            _buildShiningStarButton(),
+          ],
+        ),
       ),
       body: ValueListenableBuilder<bool>(
         valueListenable: _refreshNotifier,

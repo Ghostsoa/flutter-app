@@ -316,7 +316,7 @@ class _SupportScreenState extends State<SupportScreen> {
                         ],
                       ),
                       child: Text(
-                        '你好！我是网懿云AI的智能客服助手。请问有什么可以帮助你的吗？',
+                        '你好！我是小懿AI的智能客服助手。请问有什么可以帮助你的吗？',
                         style: TextStyle(
                           color: theme.colorScheme.onPrimaryContainer,
                         ),

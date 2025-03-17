@@ -30,7 +30,7 @@ class CustomerServiceApi {
     );
 
     final stream = response.data.stream as Stream<List<int>>;
-    final utf8Decoder = const Utf8Decoder();
+    const utf8Decoder = Utf8Decoder();
     String buffer = '';
 
     await for (final chunk in stream) {

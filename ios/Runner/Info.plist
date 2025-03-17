@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>网懿云AI</string>
+	<string>小懿AI</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -51,9 +51,9 @@
 		<string>https</string>
 	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>需要访问相册以选择和保存角色图片</string>
+	<string>需要访问相册权限以保存图片</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>需要访问相册以保存角色图片</string>
+	<string>需要访问相册权限以保存图片</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

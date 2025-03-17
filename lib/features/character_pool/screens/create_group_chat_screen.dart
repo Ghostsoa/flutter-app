@@ -10,7 +10,6 @@ import './edit_role_screen.dart';
 import '../../../data/repositories/group_chat_repository.dart';
 import '../../../data/models/group_chat.dart';
 import 'dart:convert';
-import 'package:flutter/rendering.dart';
 import 'package:file_picker/file_picker.dart';
 
 class CreateGroupChatScreen extends StatefulWidget {
