@@ -83,8 +83,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (parts.length >= 2) {
         final major = int.parse(parts[0]);
         final minor = int.parse(parts[1]);
-        final targetMajor = targetVersion.floor();
-        final targetMinor = ((targetVersion - targetMajor) * 10).floor();
+
+        // 将目标版本转换为字符串，然后分割
+        final targetParts = targetVersion.toString().split('.');
+        final targetMajor = int.parse(targetParts[0]);
+        final targetMinor =
+            targetParts.length > 1 ? int.parse(targetParts[1]) : 0;
 
         if (major < targetMajor) return true;
         if (major > targetMajor) return false;
