@@ -45,6 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatArchive> _archives = [];
   ChatArchive? _currentArchive;
   String _currentResponse = '';
+  ValueNotifier<bool> _showScrollToBottomButton = ValueNotifier(false);
 
   @override
   void initState() {
@@ -53,6 +54,18 @@ class _ChatScreenState extends State<ChatScreen> {
     _modelConfig = widget.modelConfig;
     _initServices();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+
+    // 添加滚动监听
+    _scrollController.addListener(() {
+      if (!_scrollController.hasClients) return;
+
+      final currentScroll = _scrollController.offset;
+      final showButton = currentScroll > 300; // 当滚动超过300像素时显示按钮
+
+      if (_showScrollToBottomButton.value != showButton) {
+        _showScrollToBottomButton.value = showButton;
+      }
+    });
   }
 
   Future<void> _initServices() async {
@@ -316,7 +329,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _scrollToBottom() async {
     if (_scrollController.hasClients) {
       await _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        0, // 因为使用了reverse: true，所以0是底部
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -333,66 +346,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _audioPlayerManager.dispose();
+    _showScrollToBottomButton.dispose();
     super.dispose();
-  }
-
-  Future<void> _handleCharacterUpdated(Character character) async {
-    try {
-      setState(() {
-        _character = character;
-        _modelConfig = character.toModelConfig();
-        if (_currentArchive != null) {
-          // 强制更新当前存档以应用新的样式
-          _currentArchive = _currentArchive!.copyWith();
-        }
-      });
-      // 强制重新加载存档以刷新UI
-      await _loadArchives();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('更新角色信息失败：$e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleModelConfigUpdated(ModelConfig config) async {
-    try {
-      // 更新本地状态
-      setState(() {
-        _modelConfig = config;
-      });
-
-      // 使用copyWith更新角色对象
-      final updatedCharacter = _character.copyWith(
-        model: config.model,
-        useAdvancedSettings: true, // 如果修改了配置，说明启用了高级设置
-        temperature: config.temperature,
-        topP: config.topP,
-        presencePenalty: config.presencePenalty,
-        frequencyPenalty: config.frequencyPenalty,
-        maxTokens: config.maxTokens,
-        streamResponse: config.streamResponse,
-        enableDistillation: config.enableDistillation,
-        distillationRounds: config.distillationRounds,
-        distillationModel: config.distillationModel,
-      );
-
-      // 保存到数据库
-      await _characterRepository.saveCharacter(updatedCharacter);
-
-      // 更新本地角色状态
-      setState(() {
-        _character = updatedCharacter;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存模型配置失败：$e')),
-        );
-      }
-    }
   }
 
   Future<void> _handleSendMessage() async {
@@ -438,8 +393,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (_modelConfig.streamResponse) {
         String response = '';
+        bool firstChunk = true;
         await for (final chunk
             in _messageHandler.sendStreamChatRequest(messages)) {
+          if (firstChunk && mounted) {
+            setState(() => _isLoading = false);
+            firstChunk = false;
+          }
           response += chunk;
           if (mounted) {
             setState(() => _currentResponse = response);
@@ -447,10 +407,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
 
         if (mounted) {
-          final (cleanContent, statusInfo) =
-              ChatMessage.extractStatusInfo(response);
-          final aiMessage =
-              _messageHandler.createAIMessage(cleanContent, statusInfo);
+          final aiMessage = _messageHandler.createAIMessage(response);
           final newMessages = [..._currentArchive!.messages, aiMessage];
           final newUiMessages = [..._currentArchive!.uiMessages, aiMessage];
 
@@ -466,7 +423,6 @@ class _ChatScreenState extends State<ChatScreen> {
               uiMessages: newUiMessages,
             );
             _currentResponse = '';
-            _isLoading = false;
           });
 
           await _archiveManager.saveLastArchiveId(_currentArchive!.id);
@@ -480,11 +436,12 @@ class _ChatScreenState extends State<ChatScreen> {
       } else {
         final response = await _messageHandler.sendChatRequest(messages);
 
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+
         if (response.isNotEmpty && mounted) {
-          final (cleanContent, statusInfo) =
-              ChatMessage.extractStatusInfo(response);
-          final aiMessage =
-              _messageHandler.createAIMessage(cleanContent, statusInfo);
+          final aiMessage = _messageHandler.createAIMessage(response);
           final newMessages = [..._currentArchive!.messages, aiMessage];
           final newUiMessages = [..._currentArchive!.uiMessages, aiMessage];
 
@@ -499,7 +456,6 @@ class _ChatScreenState extends State<ChatScreen> {
               messages: newMessages,
               uiMessages: newUiMessages,
             );
-            _isLoading = false;
           });
 
           await _archiveManager.saveLastArchiveId(_currentArchive!.id);
@@ -509,8 +465,6 @@ class _ChatScreenState extends State<ChatScreen> {
               newMessages.length >= _modelConfig.distillationRounds * 2) {
             await _performDistillation();
           }
-        } else {
-          setState(() => _isLoading = false);
         }
       }
     } catch (e) {
@@ -793,7 +747,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ChatMessageList(
               controller: _scrollController,
               archive: _currentArchive!,
-              characterImageUrl: _character.coverImageUrl,
               useMarkdown: _character.useMarkdown,
               userBubbleColor: _character.userBubbleColor,
               aiBubbleColor: _character.aiBubbleColor,
@@ -816,8 +769,6 @@ class _ChatScreenState extends State<ChatScreen> {
               character: _character,
               modelConfig: _modelConfig,
               characterRepository: _characterRepository,
-              onCharacterUpdated: _handleCharacterUpdated,
-              onModelConfigUpdated: _handleModelConfigUpdated,
               onArchivePressed: _switchArchive,
               onUndoPressed: _handleUndo,
               onResetPressed: _handleReset,
@@ -826,6 +777,60 @@ class _ChatScreenState extends State<ChatScreen> {
               controller: _messageController,
               isLoading: _isLoading,
               onSendPressed: _handleSendMessage,
+            ),
+            // 添加回到底部的悬浮按钮
+            ValueListenableBuilder<bool>(
+              valueListenable: _showScrollToBottomButton,
+              builder: (context, show, child) {
+                if (!show) return const SizedBox();
+                return Positioned(
+                  right: 16,
+                  bottom: 80,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _scrollToBottom,
+                        borderRadius: BorderRadius.circular(24),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Colors.black54,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '回到底部',
+                                style: TextStyle(
+                                  color: Colors.black.withOpacity(0.7),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ] else
             ChatEmptyState(onCreateArchive: _createArchive),

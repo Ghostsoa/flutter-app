@@ -24,7 +24,8 @@ class RolePlayApi {
     return _instance!;
   }
 
-  Future<Map<String, dynamic>> uploadCharacter(Character character) async {
+  Future<Map<String, dynamic>> uploadCharacter(
+      Character character, String description) async {
     try {
       final characterData = {
         "name": character.name,
@@ -59,7 +60,11 @@ class RolePlayApi {
         }
       };
 
-      final requestData = {"type": "character", "data": characterData};
+      final requestData = {
+        "type": "character",
+        "description": description,
+        "data": characterData
+      };
 
       final response = await _dioClient.post(
         '/api/v1/role-play',
@@ -91,7 +96,8 @@ class RolePlayApi {
     }
   }
 
-  Future<Map<String, dynamic>> uploadGroupChat(GroupChat group) async {
+  Future<Map<String, dynamic>> uploadGroupChat(
+      GroupChat group, String description) async {
     try {
       final groupData = {
         "name": group.name,
@@ -120,7 +126,11 @@ class RolePlayApi {
             .toList(),
       };
 
-      final requestData = {"type": "group_chat", "data": groupData};
+      final requestData = {
+        "type": "group_chat",
+        "description": description,
+        "data": groupData
+      };
 
       final response = await _dioClient.post(
         '/api/v1/role-play',

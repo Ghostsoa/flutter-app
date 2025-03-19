@@ -28,7 +28,7 @@ class ChatApi {
   }
 
   /// 构建系统提示词
-  String _buildSystemPrompt(Character character, {bool includeStatus = true}) {
+  String _buildSystemPrompt(Character character) {
     final buffer = StringBuffer();
 
     // 添加角色基本设定
@@ -42,33 +42,6 @@ class ChatApi {
       buffer.writeln('[用户设定]');
       buffer.writeln(character.userSetting);
       buffer.writeln();
-    }
-
-    // 添加状态信息
-    if (includeStatus &&
-        character.hasStatus &&
-        character.statusList.isNotEmpty) {
-      buffer.writeln('[状态设定]');
-      buffer.writeln('当前状态：');
-
-      // 构建每个状态的示例格式
-      for (var status in character.statusList) {
-        if (status.type == 'number') {
-          buffer.writeln('${status.name}: ${status.numberValue}');
-        } else {
-          buffer.writeln('${status.name}: ${status.value}');
-        }
-      }
-      buffer.writeln();
-
-      // 构建状态数组示例
-      final statusArray = character.statusList.map((status) {
-        final value =
-            status.type == 'number' ? status.numberValue : status.value;
-        return '${status.name}:$value';
-      }).toList();
-
-      buffer.writeln('请在每次回复的最后使用"[${statusArray.join(',')}]"的格式返回最新状态信息。');
     }
 
     return buffer.toString();
@@ -212,7 +185,7 @@ class ChatApi {
       final fullMessages = [
         {
           'role': 'system',
-          'content': _buildSystemPrompt(character, includeStatus: true),
+          'content': _buildSystemPrompt(character),
         },
         ...messages,
       ];
@@ -262,10 +235,7 @@ class ChatApi {
 
     try {
       final fullMessages = [
-        {
-          'role': 'system',
-          'content': _buildSystemPrompt(character, includeStatus: false)
-        },
+        {'role': 'system', 'content': _buildSystemPrompt(character)},
         ...messages,
       ];
 

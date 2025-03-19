@@ -99,10 +99,59 @@ class _CharacterCardState extends State<CharacterCard>
   }
 
   Future<void> _handleShare(BuildContext context) async {
-    Navigator.pop(context); // 关闭菜单
+    // 显示描述输入弹窗
+    final description = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('分享到大厅'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '请输入角色描述',
+                style: TextStyle(
+                  fontSize: 14,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: '简单介绍一下这个角色...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                maxLength: 200,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final text = controller.text.trim();
+                if (text.isNotEmpty) {
+                  Navigator.pop(context, text);
+                }
+              },
+              child: const Text('分享'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (description == null || !context.mounted) return;
 
     // 显示上传对话框
-    if (!context.mounted) return;
     BuildContext? dialogContext;
     showDialog(
       context: context,
@@ -126,7 +175,7 @@ class _CharacterCardState extends State<CharacterCard>
 
     try {
       final api = await RolePlayApi.getInstance();
-      final result = await api.uploadCharacter(widget.character);
+      final result = await api.uploadCharacter(widget.character, description);
 
       // 立即停止动画
       _dotsAnimationController.stop();
@@ -135,6 +184,11 @@ class _CharacterCardState extends State<CharacterCard>
       // 关闭对话框
       if (dialogContext != null && dialogContext!.mounted) {
         Navigator.of(dialogContext!).pop();
+      }
+
+      // 关闭菜单
+      if (context.mounted) {
+        Navigator.pop(context);
       }
 
       if (!context.mounted) return;

@@ -21,13 +21,12 @@ class ChatMessageHandler {
     );
   }
 
-  ChatMessage createAIMessage(String content, [String? statusInfo]) {
+  ChatMessage createAIMessage(String content) {
     return ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: content,
       isUser: false,
       timestamp: DateTime.now(),
-      statusInfo: statusInfo,
     );
   }
 

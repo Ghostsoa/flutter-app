@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../data/models/chat_message.dart';
-import 'dart:io';
 import '../services/chat_audio_player_manager.dart';
+import 'audio_visualizer.dart';
 
 class ChatBubble extends StatefulWidget {
   final ChatMessage? message;
-  final String? characterImageUrl;
   final bool useMarkdown;
   final String bubbleColor;
   final String textColor;
@@ -17,7 +16,6 @@ class ChatBubble extends StatefulWidget {
   const ChatBubble({
     super.key,
     required this.message,
-    this.characterImageUrl,
     this.useMarkdown = false,
     required this.bubbleColor,
     required this.textColor,
@@ -29,7 +27,6 @@ class ChatBubble extends StatefulWidget {
   const ChatBubble.streaming({
     super.key,
     required this.content,
-    this.characterImageUrl,
     this.useMarkdown = false,
     required this.bubbleColor,
     required this.textColor,
@@ -175,16 +172,6 @@ class _ChatBubbleState extends State<ChatBubble> {
                 isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!isUser && widget.characterImageUrl != null) ...[
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: widget.characterImageUrl!.startsWith('/')
-                      ? FileImage(File(widget.characterImageUrl!))
-                      : NetworkImage(widget.characterImageUrl!)
-                          as ImageProvider,
-                ),
-                const SizedBox(width: 8),
-              ],
               Flexible(
                 child: Container(
                   padding: const EdgeInsets.all(12),
@@ -200,24 +187,149 @@ class _ChatBubbleState extends State<ChatBubble> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _isEditing
-                              ? TextField(
-                                  controller: _editingController,
-                                  focusNode: _editFocusNode,
-                                  maxLines: null,
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 16,
-                                  ),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    suffixIcon: IconButton(
-                                      icon: const Icon(Icons.check),
-                                      onPressed: _handleSave,
-                                      color: textColor,
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    TextField(
+                                      controller: _editingController,
+                                      focusNode: _editFocusNode,
+                                      maxLines: null,
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 16,
+                                      ),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                            color: textColor.withOpacity(0.2),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                            color: textColor.withOpacity(0.2),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                            color: textColor.withOpacity(0.4),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        filled: true,
+                                        fillColor: textColor.withOpacity(0.05),
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _isEditing = false;
+                                              _editingController.text =
+                                                  widget.message?.content ?? '';
+                                            });
+                                          },
+                                          child: Container(
+                                            margin:
+                                                const EdgeInsets.only(right: 8),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  textColor.withOpacity(0.1),
+                                                  textColor.withOpacity(0.2),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.close,
+                                                  size: 16,
+                                                  color: textColor
+                                                      .withOpacity(0.8),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '取消',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textColor
+                                                        .withOpacity(0.8),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: _handleSave,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  textColor.withOpacity(0.1),
+                                                  textColor.withOpacity(0.2),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.check,
+                                                  size: 16,
+                                                  color: textColor
+                                                      .withOpacity(0.8),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '确定',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textColor
+                                                        .withOpacity(0.8),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 )
                               : widget.useMarkdown
                                   ? MarkdownBody(
@@ -225,14 +337,118 @@ class _ChatBubbleState extends State<ChatBubble> {
                                       styleSheet: MarkdownStyleSheet(
                                         p: TextStyle(
                                           color: textColor,
-                                          fontSize: 16,
+                                          fontSize: 15,
+                                          height: 1.5,
+                                          letterSpacing: 0.3,
                                         ),
                                         code: TextStyle(
-                                          color: textColor.withOpacity(0.8),
-                                          backgroundColor:
-                                              Colors.black.withOpacity(0.3),
+                                          color: Colors.pink[100],
+                                          backgroundColor: Colors.transparent,
                                           fontSize: 14,
+                                          fontFamily: 'JetBrains Mono',
+                                          height: 1.5,
                                         ),
+                                        codeblockPadding:
+                                            const EdgeInsets.all(16),
+                                        codeblockDecoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.3),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: textColor.withOpacity(0.1),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        blockquote: TextStyle(
+                                          color: textColor.withOpacity(0.9),
+                                          fontSize: 15,
+                                          height: 1.5,
+                                          letterSpacing: 0.3,
+                                        ),
+                                        blockquoteDecoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: [
+                                              textColor.withOpacity(0.15),
+                                              textColor.withOpacity(0.05),
+                                            ],
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border(
+                                            left: BorderSide(
+                                              color: Colors.blue[200]!
+                                                  .withOpacity(0.5),
+                                              width: 4,
+                                            ),
+                                          ),
+                                        ),
+                                        blockquotePadding:
+                                            const EdgeInsets.fromLTRB(
+                                                16, 12, 12, 12),
+                                        h1: TextStyle(
+                                          color: textColor,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.7,
+                                        ),
+                                        h2: TextStyle(
+                                          color: textColor,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.7,
+                                        ),
+                                        h3: TextStyle(
+                                          color: textColor,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.7,
+                                        ),
+                                        listBullet: TextStyle(
+                                          color: textColor.withOpacity(0.8),
+                                          fontSize: 15,
+                                        ),
+                                        listIndent: 24,
+                                        listBulletPadding:
+                                            const EdgeInsets.only(right: 8),
+                                        strong: TextStyle(
+                                          color: textColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        em: TextStyle(
+                                          color: textColor,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                        horizontalRuleDecoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: textColor.withOpacity(0.3),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        tableHead: TextStyle(
+                                          color: textColor,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
+                                        tableBody: TextStyle(
+                                          color: textColor.withOpacity(0.9),
+                                          fontSize: 15,
+                                        ),
+                                        tableBorder: TableBorder.all(
+                                          color: textColor.withOpacity(0.2),
+                                          width: 1,
+                                          style: BorderStyle.solid,
+                                        ),
+                                        tableCellsPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
+                                        ),
+                                        tableColumnWidth:
+                                            const FlexColumnWidth(),
                                       ),
                                       selectable: true,
                                     )
@@ -240,7 +456,9 @@ class _ChatBubbleState extends State<ChatBubble> {
                                       content,
                                       style: TextStyle(
                                         color: textColor,
-                                        fontSize: 16,
+                                        fontSize: 15,
+                                        height: 1.5,
+                                        letterSpacing: 0.3,
                                       ),
                                     ),
                           if (!isUser &&
@@ -275,9 +493,23 @@ class _ChatBubbleState extends State<ChatBubble> {
                                         playbackState ==
                                             ChatPlaybackState.loading;
 
-                                    return SizedBox(
-                                      width: 24,
-                                      height: 24,
+                                    return Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            textColor.withOpacity(0.1),
+                                            textColor.withOpacity(0.2),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                       child: Material(
                                         color: Colors.transparent,
                                         child: InkWell(
@@ -297,8 +529,8 @@ class _ChatBubbleState extends State<ChatBubble> {
                                                 },
                                           borderRadius:
                                               BorderRadius.circular(12),
-                                          child: Stack(
-                                            alignment: Alignment.center,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
                                                 isLoading
@@ -308,25 +540,41 @@ class _ChatBubbleState extends State<ChatBubble> {
                                                             .stop_circle_outlined
                                                         : Icons
                                                             .play_circle_outline,
-                                                size: 18,
+                                                size: 16,
                                                 color: isPlaying || isLoading
                                                     ? textColor
                                                     : textColor
                                                         .withOpacity(0.6),
                                               ),
+                                              const SizedBox(width: 4),
+                                              if (isPlaying)
+                                                AudioVisualizer(
+                                                  audioPlayer: widget
+                                                      .audioPlayer!.player,
+                                                  color: textColor,
+                                                  height: 16,
+                                                  barCount: 12,
+                                                )
+                                              else
+                                                Text(
+                                                  '播放',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textColor
+                                                        .withOpacity(0.8),
+                                                  ),
+                                                ),
                                               if (hasAudioId &&
                                                   !isPlaying &&
                                                   !isLoading)
-                                                Positioned(
-                                                  right: 0,
-                                                  bottom: 0,
-                                                  child: Container(
-                                                    width: 5,
-                                                    height: 5,
-                                                    decoration: BoxDecoration(
-                                                      color: textColor,
-                                                      shape: BoxShape.circle,
-                                                    ),
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                      left: 4),
+                                                  width: 4,
+                                                  height: 4,
+                                                  decoration: BoxDecoration(
+                                                    color: textColor,
+                                                    shape: BoxShape.circle,
                                                   ),
                                                 ),
                                             ],
@@ -336,23 +584,144 @@ class _ChatBubbleState extends State<ChatBubble> {
                                     );
                                   },
                                 ),
-                              const SizedBox(width: 4),
                               if (widget.message != null)
-                                SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: _handleEdit,
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: textColor.withOpacity(0.6),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_isEditing) ...[
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _isEditing = false;
+                                            _editingController.text =
+                                                widget.message?.content ?? '';
+                                          });
+                                        },
+                                        child: Container(
+                                          margin:
+                                              const EdgeInsets.only(right: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                textColor.withOpacity(0.1),
+                                                textColor.withOpacity(0.2),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.close,
+                                                size: 16,
+                                                color:
+                                                    textColor.withOpacity(0.8),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '取消',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: textColor
+                                                      .withOpacity(0.8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
+                                      GestureDetector(
+                                        onTap: _handleSave,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                textColor.withOpacity(0.1),
+                                                textColor.withOpacity(0.2),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.check,
+                                                size: 16,
+                                                color:
+                                                    textColor.withOpacity(0.8),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '确定',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: textColor
+                                                      .withOpacity(0.8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ] else
+                                      GestureDetector(
+                                        onTap: _handleEdit,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                textColor.withOpacity(0.1),
+                                                textColor.withOpacity(0.2),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.edit_outlined,
+                                                size: 16,
+                                                color:
+                                                    textColor.withOpacity(0.8),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '编辑',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: textColor
+                                                      .withOpacity(0.8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                             ],
                           ),

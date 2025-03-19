@@ -9,7 +9,6 @@ class ChatMessageList extends StatefulWidget {
   final ScrollController controller;
   final ChatArchive archive;
   final bool useMarkdown;
-  final String? characterImageUrl;
   final String userBubbleColor;
   final String aiBubbleColor;
   final String userTextColor;
@@ -24,7 +23,6 @@ class ChatMessageList extends StatefulWidget {
     super.key,
     required this.controller,
     required this.archive,
-    required this.characterImageUrl,
     this.useMarkdown = false,
     required this.userBubbleColor,
     required this.aiBubbleColor,
@@ -93,7 +91,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
           if (widget.streamingText.isNotEmpty)
             ChatBubble.streaming(
               content: widget.streamingText,
-              characterImageUrl: widget.characterImageUrl,
               useMarkdown: widget.useMarkdown,
               bubbleColor: widget.aiBubbleColor,
               textColor: widget.aiTextColor,
@@ -109,7 +106,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
             }
             return ChatBubble(
               message: message,
-              characterImageUrl: widget.characterImageUrl,
               useMarkdown: widget.useMarkdown,
               bubbleColor: message.isUser
                   ? widget.userBubbleColor

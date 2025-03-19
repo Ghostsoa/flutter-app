@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../../../data/models/group_chat_role.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 /// 角色头像组件,使用const构造函数来缓存头像
 class RoleAvatar extends StatelessWidget {
@@ -76,6 +77,7 @@ class UiMessage extends StatelessWidget {
   final Map<String, Image>? imageCache;
   final bool isGreeting;
   final bool isDistilled;
+  final bool isLoading;
 
   const UiMessage({
     super.key,
@@ -86,6 +88,7 @@ class UiMessage extends StatelessWidget {
     this.imageCache,
     this.isGreeting = false,
     this.isDistilled = false,
+    this.isLoading = false,
   });
 
   @override
@@ -149,13 +152,114 @@ class UiMessage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Text(
-                trimmedContent,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  height: 1.6,
-                  letterSpacing: 0.3,
+              MarkdownBody(
+                data: trimmedContent,
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    height: 1.6,
+                    letterSpacing: 0.3,
+                  ),
+                  code: TextStyle(
+                    color: Colors.pink[100],
+                    backgroundColor: Colors.transparent,
+                    fontSize: 14,
+                    fontFamily: 'JetBrains Mono',
+                    height: 1.5,
+                  ),
+                  codeblockPadding: const EdgeInsets.all(16),
+                  codeblockDecoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 1,
+                    ),
+                  ),
+                  blockquote: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 15,
+                    height: 1.5,
+                    letterSpacing: 0.3,
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.white.withOpacity(0.15),
+                        Colors.white.withOpacity(0.05),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border(
+                      left: BorderSide(
+                        color: Colors.blue[200]!.withOpacity(0.5),
+                        width: 4,
+                      ),
+                    ),
+                  ),
+                  blockquotePadding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                  h1: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    height: 1.7,
+                  ),
+                  h2: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.7,
+                  ),
+                  h3: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.7,
+                  ),
+                  listBullet: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 15,
+                  ),
+                  listIndent: 24,
+                  listBulletPadding: const EdgeInsets.only(right: 8),
+                  strong: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  em: const TextStyle(
+                    color: Colors.white,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  horizontalRuleDecoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  tableHead: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                  tableBody: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 15,
+                  ),
+                  tableBorder: TableBorder.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
+                    style: BorderStyle.solid,
+                  ),
+                  tableCellsPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  tableColumnWidth: const FlexColumnWidth(),
                 ),
               ),
             ],
@@ -263,22 +367,179 @@ class UiMessage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: isUser
-                    ? Colors.black.withOpacity(0.5)
-                    : Colors.white.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(18),
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                trimmedContent,
-                style: TextStyle(
-                  color: isUser ? Colors.white : Colors.black,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
+              child: isLoading
+                  ? _buildLoadingDots()
+                  : MarkdownBody(
+                      data: trimmedContent,
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white.withOpacity(0.9),
+                          fontSize: 15,
+                          height: 1.5,
+                          letterSpacing: 0.3,
+                        ),
+                        code: TextStyle(
+                          color: isUser ? Colors.pink[900] : Colors.pink[100],
+                          backgroundColor: Colors.transparent,
+                          fontSize: 14,
+                          fontFamily: 'JetBrains Mono',
+                          height: 1.5,
+                        ),
+                        codeblockPadding: const EdgeInsets.all(16),
+                        codeblockDecoration: BoxDecoration(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.05)
+                              : Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isUser
+                                ? Colors.black.withOpacity(0.1)
+                                : Colors.white.withOpacity(0.1),
+                            width: 1,
+                          ),
+                        ),
+                        blockquote: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white.withOpacity(0.9),
+                          fontSize: 15,
+                          height: 1.5,
+                          letterSpacing: 0.3,
+                        ),
+                        blockquoteDecoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              isUser
+                                  ? Colors.black.withOpacity(0.1)
+                                  : Colors.white.withOpacity(0.15),
+                              isUser
+                                  ? Colors.black.withOpacity(0.05)
+                                  : Colors.white.withOpacity(0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border(
+                            left: BorderSide(
+                              color: isUser
+                                  ? Colors.blue[900]!.withOpacity(0.5)
+                                  : Colors.blue[200]!.withOpacity(0.5),
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                        blockquotePadding:
+                            const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                        h1: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          height: 1.7,
+                        ),
+                        h2: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          height: 1.7,
+                        ),
+                        h3: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.7,
+                        ),
+                        listBullet: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white.withOpacity(0.8),
+                          fontSize: 15,
+                        ),
+                        listIndent: 24,
+                        listBulletPadding: const EdgeInsets.only(right: 8),
+                        strong: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        em: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        horizontalRuleDecoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isUser
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        tableHead: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                        tableBody: TextStyle(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.8)
+                              : Colors.white.withOpacity(0.9),
+                          fontSize: 15,
+                        ),
+                        tableBorder: TableBorder.all(
+                          color: isUser
+                              ? Colors.black.withOpacity(0.2)
+                              : Colors.white.withOpacity(0.2),
+                          width: 1,
+                          style: BorderStyle.solid,
+                        ),
+                        tableCellsPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        tableColumnWidth: const FlexColumnWidth(),
+                      ),
+                    ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLoadingDots() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              (isUser ? Colors.white : Colors.black).withOpacity(0.6),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

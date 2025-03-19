@@ -31,6 +31,7 @@ class ChatAudioPlayerManager {
   ValueNotifier<ChatPlaybackState> get playbackState => _playbackStateNotifier;
   String? get currentAudioId => _currentAudioId;
   String? get currentText => _currentText;
+  AudioPlayer get player => _audioPlayer;
 
   Future<void> init() async {
     await _ttsApi.init();

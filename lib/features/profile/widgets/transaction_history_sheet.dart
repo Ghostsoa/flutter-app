@@ -73,8 +73,7 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color:
-                    Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -131,29 +130,11 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                               .format(transaction.createdAt);
 
                           return ListTile(
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    transaction.description,
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  '小懿币: ${transaction.balanceAfter.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withOpacity(0.6),
-                                  ),
-                                ),
-                              ],
+                            title: Text(
+                              transaction.description,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                             subtitle: Text(
                               formattedTime,
@@ -165,7 +146,9 @@ class _TransactionHistorySheetState extends State<TransactionHistorySheet> {
                               ),
                             ),
                             trailing: Text(
-                              '${transaction.amount >= 0 ? "+" : ""}${transaction.amount.toStringAsFixed(2)}',
+                              transaction.amount >= 0
+                                  ? '+${transaction.amount}'
+                                  : '${transaction.amount}',
                               style: TextStyle(
                                 color: transaction.amount >= 0
                                     ? Colors.green

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/story_message.dart';
 import '../services/audio_player_manager.dart';
+import '../../../features/chat/widgets/audio_visualizer.dart';
 
 class MessageBubble extends StatefulWidget {
   final StoryMessageUI message;
@@ -143,26 +144,17 @@ class _MessageBubbleState extends State<MessageBubble> {
               ),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: widget.accentColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(4),
-                  ),
-                  border: Border.all(
-                    color: widget.accentColor,
-                    width: 1,
-                  ),
+                  color: Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   widget.message.content,
-                  style: const TextStyle(
+                  style: TextStyle(
+                    color: Colors.black.withOpacity(0.8),
                     fontSize: 15,
-                    color: Colors.white,
-                    height: 1.5,
+                    height: 1.4,
                   ),
                 ),
               ),
@@ -229,10 +221,17 @@ class _MessageBubbleState extends State<MessageBubble> {
             margin: const EdgeInsets.symmetric(vertical: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.black.withOpacity(0.6),
+                  Color(0xFF1A1A1A).withOpacity(0.6),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withOpacity(0.1),
                 width: 1,
               ),
             ),
@@ -242,15 +241,61 @@ class _MessageBubbleState extends State<MessageBubble> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      widget.message.content,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Colors.black,
-                        height: 1.5,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final List<TextSpan> spans = [];
+                        final RegExp quoteRegex = RegExp(r'[“](.*?)[”]');
+                        int lastMatchEnd = 0;
+                        final text = widget.message.content;
+
+                        // 查找所有匹配项
+                        final matches = quoteRegex.allMatches(text);
+
+                        for (final match in matches) {
+                          // 添加引号前的文本
+                          if (match.start > lastMatchEnd) {
+                            spans.add(TextSpan(
+                              text: text.substring(lastMatchEnd, match.start),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ));
+                          }
+
+                          // 添加带引号的文本（使用不同颜色）
+                          spans.add(TextSpan(
+                            text: text.substring(match.start, match.end),
+                            style: const TextStyle(
+                              color: Color.fromRGBO(78, 205, 255, 1),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ));
+
+                          lastMatchEnd = match.end;
+                        }
+
+                        // 添加最后一段文本
+                        if (lastMatchEnd < text.length) {
+                          spans.add(TextSpan(
+                            text: text.substring(lastMatchEnd),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ));
+                        }
+
+                        return RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 15,
+                              height: 1.5,
+                            ),
+                            children: spans,
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 32),
                   ],
                 ),
                 Positioned(
@@ -272,13 +317,25 @@ class _MessageBubbleState extends State<MessageBubble> {
                           final bool isLoading = isCurrentText &&
                               playbackState == PlaybackState.loading;
 
-                          // 检查是否有缓存的音频ID
                           final bool hasCachedAudio =
                               widget.message.audioId != null;
 
-                          return SizedBox(
-                            width: 24,
-                            height: 24,
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Color(0xFF43CEA2).withOpacity(1),
+                                  Color(0xFF185A9D).withOpacity(1),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
@@ -297,8 +354,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                                         }
                                       },
                                 borderRadius: BorderRadius.circular(12),
-                                child: Stack(
-                                  alignment: Alignment.center,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       isLoading
@@ -306,24 +363,39 @@ class _MessageBubbleState extends State<MessageBubble> {
                                           : isPlaying
                                               ? Icons.stop_circle_outlined
                                               : Icons.play_circle_outline,
-                                      size: 18,
+                                      size: 16,
                                       color: isPlaying || isLoading
-                                          ? widget.accentColor
-                                          : Colors.white.withOpacity(0.6),
+                                          ? const Color(0xFF2C3E50)
+                                          : const Color(0xFF2C3E50)
+                                              .withOpacity(0.6),
                                     ),
+                                    const SizedBox(width: 4),
+                                    if (isPlaying)
+                                      AudioVisualizer(
+                                        audioPlayer: widget.audioPlayer.player,
+                                        color: const Color(0xFF2C3E50),
+                                        height: 16,
+                                        barCount: 12,
+                                      )
+                                    else
+                                      Text(
+                                        '播放',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: const Color(0xFF2C3E50)
+                                              .withOpacity(0.8),
+                                        ),
+                                      ),
                                     if (hasCachedAudio &&
                                         !isPlaying &&
                                         !isLoading)
-                                      Positioned(
-                                        right: 0,
-                                        bottom: 0,
-                                        child: Container(
-                                          width: 5,
-                                          height: 5,
-                                          decoration: BoxDecoration(
-                                            color: widget.accentColor,
-                                            shape: BoxShape.circle,
-                                          ),
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 4),
+                                        width: 4,
+                                        height: 4,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2C3E50),
+                                          shape: BoxShape.circle,
                                         ),
                                       ),
                                   ],
@@ -377,7 +449,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 children: [
                   for (var action in widget.message.actions!)
                     Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: 0),
                       child: TextButton(
                         onPressed: () =>
                             widget.onActionSelected?.call(action.keys.first),
@@ -386,31 +458,49 @@ class _MessageBubbleState extends State<MessageBubble> {
                             horizontal: 12,
                             vertical: 0,
                           ),
-                          backgroundColor: widget.accentColor.withOpacity(0.1),
+                          backgroundColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
-                              color: widget.accentColor.withOpacity(0.3),
-                            ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.subdirectory_arrow_right,
-                              color: widget.accentColor,
-                              size: 14,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFF6E78D1).withOpacity(0.6),
+                                Color(0xFF9C69CC).withOpacity(0.6),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              action.keys.first,
-                              style: TextStyle(
-                                fontSize: 13,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Color(0xFF6E78D1).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.subdirectory_arrow_right,
                                 color: Colors.white.withOpacity(0.9),
+                                size: 14,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                action.keys.first,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

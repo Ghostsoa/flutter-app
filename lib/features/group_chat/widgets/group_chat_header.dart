@@ -71,7 +71,9 @@ class _GroupChatHeaderState extends State<GroupChatHeader> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.group.name,
+                      widget.group.name.length > 6
+                          ? '${widget.group.name.substring(0, 6)}...'
+                          : widget.group.name,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

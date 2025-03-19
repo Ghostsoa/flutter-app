@@ -34,6 +34,7 @@ class _GroupChatScreenState extends State<GroupChatScreen>
   final _streamingRoleNotifier = ValueNotifier<String?>(null);
   final _isDecidingNotifier = ValueNotifier<bool>(false);
   final _selectedSpeakersNotifier = ValueNotifier<List<String>>([]);
+  final _showScrollToBottomNotifier = ValueNotifier<bool>(false);
   final Map<String, Image> _imageCache = {};
   final _canUndoNotifier = ValueNotifier<bool>(false);
 
@@ -48,6 +49,7 @@ class _GroupChatScreenState extends State<GroupChatScreen>
     _setFullScreen();
     _initServices();
     _precacheRoleImages();
+    _scrollController.addListener(_handleScroll);
   }
 
   Future<void> _initServices() async {
@@ -129,6 +131,7 @@ class _GroupChatScreenState extends State<GroupChatScreen>
     _streamingRoleNotifier.dispose();
     _isDecidingNotifier.dispose();
     _selectedSpeakersNotifier.dispose();
+    _showScrollToBottomNotifier.dispose();
     _canUndoNotifier.dispose();
     _exitFullScreen();
     super.dispose();
@@ -160,6 +163,15 @@ class _GroupChatScreenState extends State<GroupChatScreen>
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
+  }
+
+  void _handleScroll() {
+    // 因为列表是反转的，所以0是底部
+    final showButton =
+        _scrollController.hasClients && _scrollController.offset > 300;
+    if (_showScrollToBottomNotifier.value != showButton) {
+      _showScrollToBottomNotifier.value = showButton;
+    }
   }
 
   Future<void> _handleSendMessage() async {
@@ -212,10 +224,18 @@ class _GroupChatScreenState extends State<GroupChatScreen>
           if (widget.group.streamResponse) {
             _streamingRoleNotifier.value = speaker;
             _streamingContentNotifier.value = '';
+            bool isFirstChunk = true;
 
             String buffer = '';
             await for (final chunk
                 in _messageHandler.getRoleStreamResponse(speaker)) {
+              if (isFirstChunk) {
+                if (mounted) {
+                  setState(() => _isLoadingNotifier.value = false);
+                }
+                isFirstChunk = false;
+              }
+
               buffer += chunk;
               _streamingContentNotifier.value = buffer;
               _scrollToBottom();
@@ -229,31 +249,52 @@ class _GroupChatScreenState extends State<GroupChatScreen>
             _canUndoNotifier.value = messages.isNotEmpty;
             success = true;
           } else {
-            final response = await _messageHandler.getRoleResponse(speaker);
-            await _messageHandler.addRoleMessage(speaker, response);
-            final messages = await _messageRepo.getMessages(widget.group.id);
-            _messagesNotifier.value = messages;
-            _canUndoNotifier.value = messages.isNotEmpty;
-            success = true;
+            // 添加一个临时的加载消息
+            final tempMessage = GroupChatMessage(
+              groupId: widget.group.id,
+              role: speaker,
+              content: '',
+            );
+            _messagesNotifier.value = [..._messagesNotifier.value, tempMessage];
+
+            try {
+              final response = await _messageHandler.getRoleResponse(speaker);
+              await _messageHandler.addRoleMessage(speaker, response);
+              final messages = await _messageRepo.getMessages(widget.group.id);
+              _messagesNotifier.value = messages;
+              _canUndoNotifier.value = messages.isNotEmpty;
+              success = true;
+            } catch (e) {
+              // 如果出错，移除临时消息
+              final messages = _messagesNotifier.value;
+              if (messages.isNotEmpty) {
+                messages.removeLast();
+                _messagesNotifier.value = List.from(messages);
+              }
+              throw e;
+            }
           }
         } catch (e) {
+          // 如果出错，移除临时消息
+          if (!widget.group.streamResponse) {
+            final messages = _messagesNotifier.value;
+            messages.removeLast();
+            _messagesNotifier.value = List.from(messages);
+          }
+
           lastError = e as Exception;
           retryCount++;
           if (retryCount < 2) {
-            // 等待一秒后无感重试
             await Future.delayed(const Duration(seconds: 1));
           }
         }
       }
 
-      // 只有在最终失败时才显示错误提示
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$speaker发言失败：$lastError')),
+          SnackBar(content: Text('${speaker}回复失败：$lastError')),
         );
       }
-
-      _scrollToBottom();
     }
 
     // 所有角色发言完成后,检查是否需要蒸馏
@@ -482,6 +523,54 @@ class _GroupChatScreenState extends State<GroupChatScreen>
               ),
             ],
           ),
+          // 回到底部按钮
+          ValueListenableBuilder<bool>(
+            valueListenable: _showScrollToBottomNotifier,
+            builder: (context, show, _) {
+              return AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                right: 16,
+                bottom: show ? 80 : -60,
+                child: GestureDetector(
+                  onTap: _scrollToBottom,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.black,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '回到底部',
+                          style: TextStyle(
+                            color: Colors.black.withOpacity(0.8),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           Positioned(
             left: 16,
             right: 16,
@@ -572,12 +661,21 @@ class _ChatMessageList extends StatelessWidget {
                   builder: (context, isDeciding, _) {
                     final displayMessages =
                         List<GroupChatMessage>.from(messages);
-                    if (streamingRole != null) {
-                      displayMessages.add(GroupChatMessage(
-                        groupId: group.id,
-                        role: streamingRole,
-                        content: streamingContent,
-                      ));
+                    if (streamingRole != null && streamingContent.isNotEmpty) {
+                      // 如果最后一条消息是同一个角色的，就更新它的内容
+                      if (displayMessages.isNotEmpty &&
+                          displayMessages.last.role == streamingRole) {
+                        final lastMessage = displayMessages.last;
+                        displayMessages[displayMessages.length - 1] =
+                            lastMessage.copyWith(content: streamingContent);
+                      } else {
+                        // 否则添加新的流式消息
+                        displayMessages.add(GroupChatMessage(
+                          groupId: group.id,
+                          role: streamingRole,
+                          content: streamingContent,
+                        ));
+                      }
                     }
 
                     return ListView.builder(
@@ -608,6 +706,10 @@ class _ChatMessageList extends StatelessWidget {
                           imageCache: imageCache,
                           isGreeting: message.isGreeting,
                           isDistilled: message.isDistilled,
+                          isLoading: message.content.isEmpty &&
+                              message.role != 'user' &&
+                              !message.isGreeting &&
+                              !message.isDistilled,
                         );
                       },
                     );

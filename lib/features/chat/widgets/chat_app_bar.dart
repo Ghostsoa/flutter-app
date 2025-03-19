@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/character.dart';
 import '../../../data/models/model_config.dart';
-import '../../character_pool/screens/edit_character_screen.dart';
 import '../../../data/repositories/character_repository.dart';
 
 class ChatAppBar extends StatelessWidget {
   final Character character;
   final ModelConfig modelConfig;
   final VoidCallback? onBackPressed;
-  final Function(Character)? onCharacterUpdated;
-  final Function(ModelConfig)? onModelConfigUpdated;
   final VoidCallback? onArchivePressed;
   final VoidCallback? onUndoPressed;
   final VoidCallback? onResetPressed;
@@ -21,8 +18,6 @@ class ChatAppBar extends StatelessWidget {
     required this.modelConfig,
     required this.characterRepository,
     this.onBackPressed,
-    this.onCharacterUpdated,
-    this.onModelConfigUpdated,
     this.onArchivePressed,
     this.onUndoPressed,
     this.onResetPressed,
@@ -74,29 +69,6 @@ class ChatAppBar extends StatelessWidget {
                   icon: const Icon(Icons.history, color: Colors.white),
                   onPressed: onArchivePressed,
                   splashRadius: 24,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                  onPressed: () async {
-                    final editResult = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute(
-                        builder: (context) => EditCharacterScreen(
-                          character: character,
-                        ),
-                      ),
-                    );
-                    if (editResult == true) {
-                      final updatedCharacter = await characterRepository
-                          .getCharacterById(character.id);
-                      if (updatedCharacter != null) {
-                        onCharacterUpdated?.call(updatedCharacter);
-                        onModelConfigUpdated
-                            ?.call(updatedCharacter.toModelConfig());
-                      }
-                    }
-                  },
-                  splashRadius: 24,
-                  tooltip: '角色设置',
                 ),
               ],
             ),

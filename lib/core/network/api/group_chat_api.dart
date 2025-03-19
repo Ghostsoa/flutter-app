@@ -268,10 +268,14 @@ ${group.setting != null ? '群聊设定：\n${group.setting}\n\n' : ''}根据历
     // 初始化每个角色的系统提示词
     for (final role in group.roles) {
       _rolePrompts[role.name] = '''你是${role.name}。
+[角色设定]
 ${role.description}
 
-${group.setting != null ? '群聊设定：\n${group.setting}\n\n' : ''}请根据历史对话，以${role.name}的身份回复。
-回复要符合角色设定，语气和性格要保持一致。
+${group.setting != null ? '[群聊设定]\n${group.setting}\n\n' : ''}
+
+
+[核心设定]
+保证上下文连贯性，不要输出xml标签，系统会自动处理
 ''';
     }
   }
@@ -373,7 +377,9 @@ ${group.setting != null ? '群聊设定：\n${group.setting}\n\n' : ''}请根据
     );
 
     final response = await api.sendChatRequest(request);
-    return response.choices.first.message?.content ?? '';
+    final content = response.choices.first.message?.content ?? '';
+    // 使用正则表达式过滤掉所有XML标签
+    return content.replaceAll(RegExp(r'<[^>]*>'), '');
   }
 
   /// 获取角色回复(流式)
@@ -397,16 +403,32 @@ ${group.setting != null ? '群聊设定：\n${group.setting}\n\n' : ''}请根据
     );
 
     String buffer = '';
+    String xmlBuffer = ''; // 用于临时存储可能的XML标签
+    bool inXmlTag = false; // 标记是否在XML标签内
+
     await for (final response in api.sendStreamChatRequest(request)) {
       final content = response.choices.first.delta?['content'] as String? ?? '';
-      buffer += content;
-      yield content;
+      if (content.isNotEmpty) {
+        for (var i = 0; i < content.length; i++) {
+          final char = content[i];
+          if (char == '<') {
+            inXmlTag = true;
+            xmlBuffer = '<';
+          } else if (char == '>' && inXmlTag) {
+            inXmlTag = false;
+            xmlBuffer = '';
+          } else if (inXmlTag) {
+            xmlBuffer += char;
+          } else if (!inXmlTag) {
+            buffer += char;
+            yield char;
+          }
+        }
+      }
     }
 
-    // 流式响应完成后，添加完整消息到历史记录
-    if (buffer.isNotEmpty) {
-      await addRoleMessage(roleName, buffer);
-    }
+    // 流式响应结束后，保存完整的消息
+    await addRoleMessage(roleName, buffer);
   }
 
   /// 清空所有历史记录

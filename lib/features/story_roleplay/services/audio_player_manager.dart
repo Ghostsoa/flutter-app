@@ -70,6 +70,7 @@ class AudioPlayerManager {
   ValueNotifier<PlaybackState> get playbackState => _playbackStateNotifier;
   String? get currentAudioId => _currentAudioId;
   String? get currentText => _currentText;
+  AudioPlayer get player => _audioPlayer;
 
   Future<void> init() async {
     await _ttsApi.init();
@@ -271,7 +272,7 @@ class AudioPlayerManager {
         // 如果缓存中不存在，则请求API
         Logger.info('缓存中不存在音频: $audioId, 正在请求API');
         _playbackStateNotifier.value = PlaybackState.loading;
-        
+
         final response = await _ttsApi.convertToSpeech(text);
         audioFile = await _saveAudioToCache(audioId, response.audioData);
         await _audioPlayer.setFilePath(audioFile.path);

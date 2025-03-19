@@ -242,8 +242,8 @@ class _WinnersListState extends State<WinnersList> {
                             text: formattedTime,
                             style: TextStyle(
                               fontSize: 12,
-                              color: theme.colorScheme.onSurface
-                                  .withOpacity(0.6),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ],

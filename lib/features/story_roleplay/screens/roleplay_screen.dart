@@ -32,6 +32,7 @@ class RoleplayScreen extends StatefulWidget {
 class _RoleplayScreenState extends State<RoleplayScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _showScrollToBottomNotifier = ValueNotifier<bool>(false);
   bool _isLoading = false;
   bool _isInitialized = false;
   bool _isInitializing = false;
@@ -47,6 +48,25 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
     _setFullScreen();
     _audioPlayer = AudioPlayerManager();
     _init();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final showButton = _scrollController.offset > 300;
+    if (_showScrollToBottomNotifier.value != showButton) {
+      _showScrollToBottomNotifier.value = showButton;
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _init() async {
@@ -266,6 +286,7 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _showScrollToBottomNotifier.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -457,6 +478,67 @@ class _RoleplayScreenState extends State<RoleplayScreen> {
                 ),
               ],
             ),
+          ),
+          // 添加回到底部按钮
+          ValueListenableBuilder<bool>(
+            valueListenable: _showScrollToBottomNotifier,
+            builder: (context, show, _) {
+              return AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                right: 16,
+                bottom: show
+                    ? (_currentState?.statusUpdates != null ? 112 : 80)
+                    : -60,
+                child: GestureDetector(
+                  onTap: _scrollToBottom,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.6),
+                          Color(0xFF1A1A1A).withOpacity(0.6),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white.withOpacity(0.9),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '回到底部',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

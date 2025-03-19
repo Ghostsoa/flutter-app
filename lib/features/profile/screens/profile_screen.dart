@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' show Random, pow;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,6 +15,7 @@ import '../../../core/network/api/version_api.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../../features/support/screens/support_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,20 +29,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isRefreshing = false;
   WalletApi? _walletApi;
   double _balance = 0;
+  double _displayBalance = 0;
   bool _isLoading = true;
   final _cardKeyApi = CardKeyApi();
   final _versionApi = VersionApi();
   bool _isRedeeming = false;
-  String _currentVersion = '1.0.0'; // 从pubspec.yaml中的版本号
+  String _currentVersion = '1.0.0';
   double? _latestVersion;
   bool _hasNewVersion = false;
+  static const String _balanceKey = 'wallet_balance';
+  late final SharedPreferences _prefs;
+  bool _shouldAnimate = false;
+  bool _isRandomAnimating = false;
+  final _random = Random();
 
   @override
   void initState() {
     super.initState();
+    _initPrefs();
     _initWalletApi();
     _initApi();
     _checkVersion();
+  }
+
+  Future<void> _initPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    final savedBalance = _prefs.getDouble(_balanceKey) ?? 0.0;
+    if (mounted) {
+      setState(() {
+        _balance = savedBalance;
+        _displayBalance = savedBalance;
+      });
+    }
+  }
+
+  Future<void> _saveBalance(double balance) async {
+    await _prefs.setDouble(_balanceKey, balance);
   }
 
   Future<void> _checkVersion() async {
@@ -154,22 +178,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _refreshBalance() async {
     if (_isRefreshing || _walletApi == null) return;
-    setState(() => _isRefreshing = true);
+    _isRefreshing = true;
+
+    // 开始随机数字动画
+    setState(() {
+      _isRandomAnimating = true;
+      _shouldAnimate = false;
+    });
 
     try {
       Logger.info('获取小懿币');
-      await Future.delayed(const Duration(milliseconds: 50)); // 添加短暂延迟
       final balance = await _walletApi!.getBalance();
       if (mounted) {
         setState(() {
-          _balance = balance;
-          _isRefreshing = false;
+          _isRandomAnimating = false;
+          if (balance != _balance) {
+            _displayBalance = _balance;
+            _balance = balance;
+            _shouldAnimate = true;
+          }
         });
+        await _saveBalance(balance);
+      }
+      if (mounted) {
+        setState(() => _isRefreshing = false);
       }
     } catch (e, stackTrace) {
       Logger.error('获取小懿币', error: e, stackTrace: stackTrace);
       if (mounted) {
-        setState(() => _isRefreshing = false);
+        setState(() {
+          _isRandomAnimating = false;
+          _isRefreshing = false;
+        });
       }
     }
   }
@@ -1019,39 +1059,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  if (_isLoading)
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                  else
-                    Text(
-                      _balance.toStringAsFixed(2),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  GestureDetector(
+                    onTap: _isRefreshing ? null : _refreshBalance,
+                    child: _isRandomAnimating
+                        ? TweenAnimationBuilder<double>(
+                            duration: const Duration(milliseconds: 100),
+                            tween: Tween<double>(
+                              begin: _displayBalance,
+                              end: _getRandomBalance(),
+                            ),
+                            onEnd: () {
+                              if (_isRandomAnimating && mounted) {
+                                setState(() {
+                                  _displayBalance = _getRandomBalance();
+                                });
+                              }
+                            },
+                            builder: (context, value, child) {
+                              return Text(
+                                value.toStringAsFixed(6),
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              );
+                            },
+                          )
+                        : _shouldAnimate
+                            ? TweenAnimationBuilder<double>(
+                                duration: const Duration(milliseconds: 500),
+                                tween: Tween<double>(
+                                  begin: _displayBalance,
+                                  end: _balance,
+                                ),
+                                onEnd: () {
+                                  setState(() {
+                                    _displayBalance = _balance;
+                                    _shouldAnimate = false;
+                                  });
+                                },
+                                builder: (context, value, child) {
+                                  return Text(
+                                    value.toStringAsFixed(6),
+                                    style:
+                                        theme.textTheme.headlineSmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
+                              )
+                            : Text(
+                                _balance.toStringAsFixed(6),
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                  ),
                 ],
               ),
-            ),
-            IconButton(
-              icon: _isRefreshing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Icon(
-                      Icons.refresh,
-                      color: theme.colorScheme.primary,
-                    ),
-              onPressed: _isRefreshing ? null : _refreshBalance,
             ),
           ],
         ),
@@ -1274,5 +1341,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  double _getRandomBalance() {
+    // 分离整数和小数部分
+    final integerPart = _balance.floor();
+
+    // 计算整数部分的位数
+    final integerPartLength = integerPart.toString().length;
+
+    // 计算整数部分的范围
+    final minInteger = pow(10, integerPartLength - 1).toInt();
+    final maxInteger = pow(10, integerPartLength).toInt() - 1;
+
+    // 生成随机整数部分，确保位数相同
+    final randomInteger =
+        minInteger + _random.nextInt(maxInteger - minInteger + 1);
+
+    // 生成随机小数部分（6位小数）
+    final randomDecimal = _random.nextDouble();
+
+    // 组合整数和小数部分
+    final randomValue = randomInteger + randomDecimal;
+
+    // 格式化为6位小数
+    return double.parse(randomValue.toStringAsFixed(6));
   }
 }
