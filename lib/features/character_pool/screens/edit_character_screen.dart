@@ -33,6 +33,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
   File? _selectedImage;
   bool _isLoading = false;
   bool _useMarkdown = false;
+  bool _useAlgorithmFormat = true;
   bool _hasStatus = false;
   List<CharacterStatus> _statusList = [];
   final _picker = ImagePicker();
@@ -71,6 +72,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
       _greetingController.text = widget.character!.greeting ?? '';
       _coverImageUrl = widget.character!.coverImageUrl;
       _useMarkdown = widget.character!.useMarkdown;
+      _useAlgorithmFormat = widget.character!.useAlgorithmFormat;
       _hasStatus = widget.character!.hasStatus;
       _statusList = List.from(widget.character!.statusList);
       _backgroundOpacity = widget.character!.backgroundOpacity;
@@ -270,6 +272,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
         greeting:
             _greetingController.text.isEmpty ? null : _greetingController.text,
         useMarkdown: _useMarkdown,
+        useAlgorithmFormat: _useAlgorithmFormat,
         hasStatus: _hasStatus,
         statusList: _statusList,
         backgroundOpacity: _backgroundOpacity,
@@ -363,6 +366,7 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
             ? File(character.coverImageUrl!)
             : null;
         _useMarkdown = character.useMarkdown;
+        _useAlgorithmFormat = character.useAlgorithmFormat;
         _hasStatus = character.hasStatus;
         _statusList = List.from(character.statusList);
         _backgroundOpacity = character.backgroundOpacity;
@@ -991,6 +995,189 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
     );
   }
 
+  Widget _buildFormatSection() {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: Row(
+              children: [
+                const Text('使用算法格式化'),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.info_outline, size: 18),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text('算法格式化说明'),
+                          ],
+                        ),
+                        content: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '自动处理以下格式的换行：',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: '1. 普通文本[动作]\n',
+                                      style: TextStyle(height: 2),
+                                    ),
+                                    TextSpan(text: '   → '),
+                                    TextSpan(
+                                      text: '普通文本\n[动作]',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: '2. [动作]普通文本\n',
+                                      style: TextStyle(height: 2),
+                                    ),
+                                    TextSpan(text: '   → '),
+                                    TextSpan(
+                                      text: '[动作]\n普通文本',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: '3. 普通文本（补充）\n',
+                                      style: TextStyle(height: 2),
+                                    ),
+                                    TextSpan(text: '   → '),
+                                    TextSpan(
+                                      text: '普通文本\n（补充）',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                '支持的符号：',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text('• 方括号：[ ] 【 】'),
+                              const Text('• 圆括号：( ) （ ）'),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                      .withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.lightbulb_outline,
+                                          size: 16,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '提示',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      '此功能会自动在括号前后添加换行，使对话内容和动作/补充说明更加清晰。同时所有文本会自动添加彩色高亮以提升可读性。',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('了解了'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  tooltip: '查看格式化说明',
+                ),
+              ],
+            ),
+            subtitle: const Text('请详细阅读说明'),
+            value: _useAlgorithmFormat,
+            onChanged: (value) {
+              setState(() {
+                _useAlgorithmFormat = value;
+                if (value) {
+                  _useMarkdown = false;
+                }
+              });
+            },
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('使用 Markdown'),
+            subtitle: const Text('使用 Markdown 格式渲染文本'),
+            value: _useMarkdown,
+            onChanged: (value) {
+              setState(() {
+                _useMarkdown = value;
+                if (value) {
+                  _useAlgorithmFormat = false;
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1028,38 +1215,31 @@ class _EditCharacterScreenState extends State<EditCharacterScreen> {
             _buildImageSection(),
             const SizedBox(height: 16),
             _buildTextField(
-              label: '名称',
+              label: '角色名称',
               controller: _nameController,
-              hint: '角色的名字',
               required: true,
             ),
             _buildTextField(
-              label: '描述',
+              label: '角色描述',
               controller: _descriptionController,
-              hint: '角色的个性、背景故事等',
               maxLines: 3,
               required: true,
             ),
             _buildTextField(
-              label: '用户设定',
+              label: '用户设定（可选）',
               controller: _userSettingController,
-              hint: '可选：设定用户在对话中扮演的角色',
-              maxLines: 2,
+              maxLines: 3,
+              hint: '添加额外的角色设定...',
             ),
             _buildTextField(
-              label: '开场白',
+              label: '开场白（可选）',
               controller: _greetingController,
-              hint: '可选：角色的开场白',
-              maxLines: 2,
+              maxLines: 3,
+              hint: '设置对话开始时的开场白...',
             ),
-            SwitchListTile(
-              title: const Text('启用Markdown'),
-              subtitle: const Text('允许在对话中使用Markdown格式'),
-              value: _useMarkdown,
-              onChanged: (value) => setState(() => _useMarkdown = value),
-            ),
+            _buildFormatSection(),
             _buildColorSection(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             _buildModelSection(),
             const SizedBox(height: 32),
           ],

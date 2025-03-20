@@ -627,7 +627,7 @@ class _LobbyScreenState extends State<LobbyScreen>
                                             horizontal: 12,
                                             vertical: 8,
                                           ),
-                                          child: Row(
+                                          child: const Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
@@ -635,8 +635,8 @@ class _LobbyScreenState extends State<LobbyScreen>
                                                 color: Colors.white,
                                                 size: 20,
                                               ),
-                                              const SizedBox(width: 4),
-                                              const Text(
+                                              SizedBox(width: 4),
+                                              Text(
                                                 '删除',
                                                 style: TextStyle(
                                                   color: Colors.white,

@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../data/models/chat_message.dart';
 import '../services/chat_audio_player_manager.dart';
 import 'audio_visualizer.dart';
+import '../../../core/utils/text_formatter.dart';
 
 class ChatBubble extends StatefulWidget {
   final ChatMessage? message;
@@ -155,6 +156,9 @@ class _ChatBubbleState extends State<ChatBubble> {
   @override
   Widget build(BuildContext context) {
     final content = widget.message?.content ?? widget.content ?? '';
+    final formattedContent = widget.useMarkdown
+        ? TextFormatter.formatModelResponse(content)
+        : content;
     final isUser = widget.message?.isUser ?? false;
     final bubbleColor = _hexToColor(widget.bubbleColor);
     final textColor = _hexToColor(widget.textColor);
@@ -333,7 +337,7 @@ class _ChatBubbleState extends State<ChatBubble> {
                                 )
                               : widget.useMarkdown
                                   ? MarkdownBody(
-                                      data: content,
+                                      data: formattedContent,
                                       styleSheet: MarkdownStyleSheet(
                                         p: TextStyle(
                                           color: textColor,
@@ -452,14 +456,18 @@ class _ChatBubbleState extends State<ChatBubble> {
                                       ),
                                       selectable: true,
                                     )
-                                  : Text(
-                                      content,
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 15,
-                                        height: 1.5,
-                                        letterSpacing: 0.3,
-                                      ),
+                                  : Builder(
+                                      builder: (context) {
+                                        return RichText(
+                                          text: TextSpan(
+                                            children: TextFormatter
+                                                .formatHighlightText(
+                                              formattedContent,
+                                              textColor: textColor,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                           if (!isUser &&
                               !_isEditing &&

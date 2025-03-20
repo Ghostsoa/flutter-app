@@ -5,6 +5,7 @@ import '../../../core/utils/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import '../../../core/utils/text_formatter.dart';
 
 class ChatApi {
   static const String _baseUrl = 'https://cc.xiaoyi.live';
@@ -132,7 +133,8 @@ class ChatApi {
       Logger.info('蒸馏完成，结果长度: ${content.length}', tag: 'DISTILL');
       Logger.info('蒸馏结果:\n$content', tag: 'DISTILL');
 
-      return content;
+      // 格式化蒸馏结果
+      return TextFormatter.formatModelResponse(content);
     } catch (e) {
       Logger.error('蒸馏过程出错', tag: 'DISTILL', error: e);
       rethrow;
@@ -171,6 +173,14 @@ class ChatApi {
       if (presencePenalty != null) 'presence_penalty': presencePenalty,
       if (frequencyPenalty != null) 'frequency_penalty': frequencyPenalty,
     };
+  }
+
+  /// 格式化响应内容
+  String _formatResponse(String content, Character character) {
+    if (character.useAlgorithmFormat) {
+      return TextFormatter.formatModelResponse(content);
+    }
+    return content;
   }
 
   /// 发送非流式请求
@@ -219,7 +229,8 @@ class ChatApi {
         throw Exception('响应内容为空');
       }
 
-      return content;
+      // 格式化响应内容
+      return _formatResponse(content, character);
     } catch (e) {
       rethrow;
     }
@@ -260,6 +271,7 @@ class ChatApi {
 
       final stream = (response.data as ResponseBody).stream;
       String buffer = '';
+      String responseBuffer = '';
 
       await for (final chunk in stream) {
         final chunkText = utf8.decode(chunk);
@@ -275,6 +287,14 @@ class ChatApi {
 
           final data = line.substring(6);
           if (data == '[DONE]') {
+            // 处理最后剩余的文本
+            if (responseBuffer.isNotEmpty) {
+              if (character.useAlgorithmFormat) {
+                yield TextFormatter.formatModelResponse(responseBuffer);
+              } else {
+                yield responseBuffer;
+              }
+            }
             return;
           }
 
@@ -289,7 +309,16 @@ class ChatApi {
                 as Map<String, dynamic>;
             final content = delta['content'] as String?;
             if (content != null) {
-              yield content;
+              responseBuffer += content;
+              // 只在启用算法格式化时才进行格式化
+              if (character.useAlgorithmFormat &&
+                  (content.contains(']') || content.contains(')'))) {
+                yield TextFormatter.formatModelResponse(responseBuffer);
+                responseBuffer = '';
+              } else if (!character.useAlgorithmFormat) {
+                // 不使用算法格式化时，直接输出内容
+                yield content;
+              }
             }
           } catch (e) {
             continue;

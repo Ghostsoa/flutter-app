@@ -31,6 +31,7 @@ class Character {
   final String? userSetting; // 用户设定
   final String? greeting; // 开场白
   final bool useMarkdown; // 是否使用Markdown格式化
+  final bool useAlgorithmFormat; // 是否使用算法格式化输出
   final bool hasStatus; // 是否启用状态
   final List<CharacterStatus> statusList; // 状态列表
 
@@ -62,6 +63,7 @@ class Character {
     this.userSetting,
     this.greeting,
     this.useMarkdown = false,
+    this.useAlgorithmFormat = true,
     this.hasStatus = false,
     this.statusList = const [],
     this.backgroundOpacity = 0.5,
@@ -80,10 +82,48 @@ class Character {
     this.enableDistillation = false,
     this.distillationRounds = 20,
     this.distillationModel = 'gemini-distill',
-  });
+  }) : assert(!(useMarkdown && useAlgorithmFormat), '不能同时启用 Markdown 和算法格式化');
 
-  factory Character.fromJson(Map<String, dynamic> json) =>
-      _$CharacterFromJson(json);
+  factory Character.fromJson(Map<String, dynamic> json) {
+    // 处理旧版本数据，如果没有 useAlgorithmFormat 字段，根据 useMarkdown 来设置
+    final useMarkdown = json['useMarkdown'] as bool? ?? false;
+    final useAlgorithmFormat =
+        json['useAlgorithmFormat'] as bool? ?? !useMarkdown;
+
+    return Character(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      coverImageUrl: json['coverImageUrl'] as String?,
+      userSetting: json['userSetting'] as String?,
+      greeting: json['greeting'] as String?,
+      useMarkdown: useMarkdown,
+      useAlgorithmFormat: useAlgorithmFormat,
+      hasStatus: json['hasStatus'] as bool? ?? false,
+      statusList: (json['statusList'] as List<dynamic>?)
+              ?.map((e) => CharacterStatus.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      backgroundOpacity: (json['backgroundOpacity'] as num?)?.toDouble() ?? 0.5,
+      userBubbleColor: json['userBubbleColor'] as String? ?? '#2196F3',
+      aiBubbleColor: json['aiBubbleColor'] as String? ?? '#1A1A1A',
+      userTextColor: json['userTextColor'] as String? ?? '#FFFFFF',
+      aiTextColor: json['aiTextColor'] as String? ?? '#FFFFFF',
+      model: json['model'] as String? ?? 'gemini-2.0-flash',
+      useAdvancedSettings: json['useAdvancedSettings'] as bool? ?? false,
+      temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
+      topP: (json['topP'] as num?)?.toDouble() ?? 1.0,
+      presencePenalty: (json['presencePenalty'] as num?)?.toDouble() ?? 0.0,
+      frequencyPenalty: (json['frequencyPenalty'] as num?)?.toDouble() ?? 0.0,
+      maxTokens: json['maxTokens'] as int? ?? 2000,
+      streamResponse: json['streamResponse'] as bool? ?? true,
+      enableDistillation: json['enableDistillation'] as bool? ?? false,
+      distillationRounds: json['distillationRounds'] as int? ?? 20,
+      distillationModel:
+          json['distillationModel'] as String? ?? 'gemini-distill',
+    );
+  }
+
   Map<String, dynamic> toJson() => _$CharacterToJson(this);
 
   Character copyWith({
@@ -94,6 +134,7 @@ class Character {
     String? userSetting,
     String? greeting,
     bool? useMarkdown,
+    bool? useAlgorithmFormat,
     bool? hasStatus,
     List<CharacterStatus>? statusList,
     double? backgroundOpacity,
@@ -113,6 +154,11 @@ class Character {
     int? distillationRounds,
     String? distillationModel,
   }) {
+    final newUseMarkdown = useMarkdown ?? this.useMarkdown;
+    final newUseAlgorithmFormat = useAlgorithmFormat ?? this.useAlgorithmFormat;
+    assert(
+        !(newUseMarkdown && newUseAlgorithmFormat), '不能同时启用 Markdown 和算法格式化');
+
     return Character(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -120,7 +166,8 @@ class Character {
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       userSetting: userSetting ?? this.userSetting,
       greeting: greeting ?? this.greeting,
-      useMarkdown: useMarkdown ?? this.useMarkdown,
+      useMarkdown: newUseMarkdown,
+      useAlgorithmFormat: newUseAlgorithmFormat,
       hasStatus: hasStatus ?? this.hasStatus,
       statusList: statusList ?? this.statusList,
       backgroundOpacity: backgroundOpacity ?? this.backgroundOpacity,
