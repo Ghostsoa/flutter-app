@@ -376,6 +376,14 @@ class _EditRoleScreenState extends State<EditRoleScreen> {
                   value: 'gemini-2-lite',
                   child: Text('Gemini 2 Lite'),
                 ),
+                DropdownMenuItem(
+                  value: 'gemini-2.5-pro-exp',
+                  child: Text('Gemini 2.5 Pro EXP'),
+                ),
+                DropdownMenuItem(
+                  value: 'gemini-1.5-pro',
+                  child: Text('Gemini 1.5 Pro'),
+                ),
               ],
               onChanged: (value) {
                 if (value != null) {
